@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phoenix Multi-Channel Marketplace Delivery Gantt</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Google Fonts for premium typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <!-- FontAwesome for professional icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+  <div class="app-container">
+    <!-- Top Dashboard Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-icon"><i class="fa-solid fa-network-wired"></i></div>
+        <div>
+          <h1>Phoenix Multi-Channel Release Planner</h1>
+          <p class="subtitle">November 1 Delivery and Staffing Plan Visualization</p>
+        </div>
+      </div>
+      <div class="header-stats">
+        <div class="stat-card">
+          <span class="stat-label">Start Date</span>
+          <span class="stat-val">2026-06-29</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Target Go-Live</span>
+          <span class="stat-val critical">2026-11-01</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Total Staff</span>
+          <span class="stat-val">21 (14 Dev / 6 QA / 1 TL)</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Blocked Tasks</span>
+          <span class="stat-val warning" id="blocked-count-badge">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Toolbar Filters & Settings -->
+    <div class="toolbar">
+      <div class="toolbar-group search-group">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" id="search-input" placeholder="Search task name or owner..." autocomplete="off">
+      </div>
+
+      <div class="toolbar-group">
+        <label for="filter-section"><i class="fa-solid fa-layer-group"></i> Section:</label>
+        <select id="filter-section">
+          <option value="all">All Sections</option>
+          <option value="Mobilization and Design">Mobilization & Design</option>
+          <option value="Foundation and DevOps">Foundation & DevOps</option>
+          <option value="Shared Integration Layer">Shared Integration Layer</option>
+          <option value="Product Sync">Product Sync</option>
+          <option value="Price and Promotion Sync">Price & Promo Sync</option>
+          <option value="Order Sync and Fulfilment Routing">Order & Fulfilment Sync</option>
+          <option value="Stock Sync">Stock Sync</option>
+          <option value="Channel Adapters">Channel Adapters</option>
+          <option value="Admin Portal">Admin Portal</option>
+          <option value="Testing and Release">Testing & Release</option>
+        </select>
+      </div>
+
+      <div class="toolbar-group">
+        <label for="filter-owner"><i class="fa-solid fa-user-tie"></i> Owner:</label>
+        <select id="filter-owner">
+          <option value="all">All Owners</option>
+          <option value="TL">Tech Lead (TL)</option>
+          <option value="QA-01">QA-01 (QA Lead)</option>
+          <option value="QA-02">QA-02 (API Automation QA)</option>
+          <option value="QA-03">QA-03 (Domain Functional QA)</option>
+          <option value="QA-04">QA-04 (Integration & UAT QA)</option>
+          <option value="QA-05">QA-05 (Performance SDET)</option>
+          <option value="DEV-01">DEV-01 (DevOps/Platform)</option>
+          <option value="DEV-02">DEV-02 (Backend Foundation)</option>
+          <option value="DEV-03">DEV-03 (Contracts & Schema)</option>
+          <option value="DEV-04">DEV-04 (Adapter SDK)</option>
+          <option value="DEV-05">DEV-05 (Product Sync)</option>
+          <option value="DEV-06">DEV-06 (Price & Promo Sync)</option>
+          <option value="DEV-07">DEV-07 (Order Sync)</option>
+          <option value="DEV-08">DEV-08 (Fulfilment Routing)</option>
+          <option value="DEV-09">DEV-09 (Stock Sync / ATS)</option>
+          <option value="DEV-10">DEV-10 (Stock Orchestration)</option>
+          <option value="DEV-11">DEV-11 (Shopee/Lazada Adapter)</option>
+          <option value="DEV-12">DEV-12 (TikTok/Channel Adapter)</option>
+          <option value="DEV-13">DEV-13 (Admin Portal Frontend)</option>
+          <option value="DEV-14">DEV-14 (Admin Portal Backend)</option>
+          <option value="QA-06">QA-06 (Admin Portal QA)</option>
+        </select>
+      </div>
+
+      <div class="toolbar-group flex-grow"></div>
+
+      <div class="toolbar-group zoom-group">
+        <span class="zoom-label"><i class="fa-solid fa-magnifying-glass-plus"></i> Timeline Zoom:</span>
+        <input type="range" id="zoom-slider" min="15" max="60" value="15" step="1">
+        <span id="zoom-val">15px/day</span>
+      </div>
+
+      <button id="reset-btn" class="btn btn-secondary" title="Reset all resolved dependencies and notes">
+        <i class="fa-solid fa-arrows-rotate"></i> Reset Progress
+      </button>
+    </div>
+
+    <!-- Main Workspace Split-Pane Grid -->
+    <main class="gantt-workspace">
+      <!-- Left Pane: Work Breakdown Structure (WBS) Table -->
+      <div class="wbs-pane" id="wbs-pane">
+        <div class="wbs-header-row">
+          <div class="wbs-header-cell cell-id">ID</div>
+          <div class="wbs-header-cell cell-indicators" title="Indicators (Blocked / Notes)"><i
+              class="fa-solid fa-circle-info"></i></div>
+          <div class="wbs-header-cell cell-wbs">WBS</div>
+          <div class="wbs-header-cell cell-name">Task Name</div>
+          <div class="wbs-header-cell cell-start">Start</div>
+          <div class="wbs-header-cell cell-finish">Finish</div>
+          <div class="wbs-header-cell cell-duration">Duration</div>
+          <div class="wbs-header-cell cell-owners">Owners</div>
+          <div class="wbs-header-cell cell-predecessors">Predecessors</div>
+        </div>
+        <div class="wbs-body" id="wbs-body">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- Divider Splitter -->
+      <div class="pane-splitter" id="pane-splitter"></div>
+
+      <!-- Right Pane: Gantt Scrollable Timeline -->
+      <div class="timeline-pane" id="timeline-pane">
+        <div class="timeline-scroll-container" id="timeline-scroll-container">
+          <!-- Header Rows (Sticky) -->
+          <div class="timeline-header" id="timeline-header">
+            <!-- Row 1: Months -->
+            <div class="header-row month-row" id="month-header-row"></div>
+            <!-- Row 2: Sprints -->
+            <div class="header-row sprint-row" id="sprint-header-row"></div>
+            <!-- Row 3: Days -->
+            <div class="header-row day-row" id="day-header-row"></div>
+          </div>
+          <!-- Grid Body and Task Bars Overlay -->
+          <div class="timeline-body" id="timeline-body">
+            <!-- SVG Overlay for drawing dependency lines -->
+            <svg class="dependency-svg" id="dependency-svg"></svg>
+            <!-- Background grid vertical lines -->
+            <div class="grid-background" id="grid-background"></div>
+            <!-- Rows with task bars -->
+            <div class="bars-container" id="bars-container"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Legend Footer -->
+    <footer class="app-footer">
+      <div class="legend-item"><span class="legend-box normal-task"></span> Normal Task</div>
+      <div class="legend-item"><span class="legend-box critical-task"></span> Critical Path Task</div>
+      <div class="legend-item"><span class="legend-box milestone-task"></span> Milestone</div>
+      <div class="legend-item"><span class="legend-box blocked-task animate-pulse"></span> Blocked Task (Unresolved
+        Dependencies)</div>
+      <div class="legend-item"><span class="legend-box weekend-shading"></span> Weekend (Non-working)</div>
+      <div class="flex-grow"></div>
+      <div class="footer-help">
+        <i class="fa-solid fa-lightbulb"></i> Click any row or Gantt bar to inspect details and resolve dependencies.
+      </div>
+    </footer>
+  </div>
+
+  <!-- Task Details Dialog / Modal -->
+  <div class="modal-overlay" id="task-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 id="modal-task-title">Task Details</h3>
+        <button class="modal-close-btn" id="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-fields-grid">
+          <div class="field-group">
+            <span class="field-label">ID / WBS</span>
+            <span class="field-value" id="modal-task-wbs">m1</span>
+          </div>
+          <div class="field-group">
+            <span class="field-label">Section</span>
+            <span class="field-value" id="modal-task-section">Mobilization</span>
+          </div>
+          <div class="field-group">
+            <span class="field-label">Start Date</span>
+            <span class="field-value" id="modal-task-start">2026-06-29</span>
+          </div>
+          <div class="field-group">
+            <span class="field-label">Finish Date</span>
+            <span class="field-value" id="modal-task-finish">2026-07-03</span>
+          </div>
+          <div class="field-group">
+            <span class="field-label">Duration</span>
+            <span class="field-value" id="modal-task-duration">5 Days</span>
+          </div>
+          <div class="field-group">
+            <span class="field-label">Owners</span>
+            <span class="field-value" id="modal-task-owners">Dev1</span>
+          </div>
+        </div>
+
+        <div class="field-group full-width description-field">
+          <span class="field-label">Why it takes this long / Rationale</span>
+          <div class="field-value-text" id="modal-task-rationale"></div>
+        </div>
+
+        <!-- Dependency Resolution Section -->
+        <div class="dependencies-section">
+          <h4><i class="fa-solid fa-link"></i> Task Predecessors & Dependencies</h4>
+          <p class="section-desc">To change this task's status to Normal, you must review and resolve all predecessor
+            tasks. Click on a dependency to resolve it.</p>
+
+          <div class="dependencies-list-container">
+            <table class="dependencies-table">
+              <thead>
+                <tr>
+                  <th style="width: 80px;">Code</th>
+                  <th>Predecessor Task Name</th>
+                  <th style="width: 120px; text-align: center;">Status</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="modal-dependencies-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="modal-cancel-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
