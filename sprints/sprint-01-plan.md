@@ -16,7 +16,7 @@
 | DEV-03 | Contracts & Schema | Canonical Protobuf schemas (all domains), error taxonomy, idempotency strategy |
 | DEV-04 | Adapter SDK | SDK skeleton: HTTP client, auth interface, retry taxonomy, telemetry stubs |
 | DEV-05 | Product Sync | Product domain model, RMS data model design (*joins Jul 6*) |
-| DEV-06 | Price & Promotion | Price/promotion domain model, R10/LDD data model design (*joins Jul 6*) |
+| DEV-06 | Price & Promotion | Price/promotion domain model, RMS/LDD data model design (*joins Jul 6*) |
 | DEV-07 | Order Sync | Order domain model, fulfilment data model design |
 | DEV-09 | Stock Sync | Stock domain model, ATS data model design |
 | QA-01 | QA Lead | Test strategy, fixture design, acceptance criteria validation |
@@ -63,12 +63,12 @@
 ## Story 1.3: External Dependency Contract Discovery
 
 **Gantt Code:** m3  
-**Narrative:** As the **Tech Lead** with domain engineers, I want to confirm contract owners, quotas, payload samples, and error codes for RMS, R10/LDD, Stock Service, and WMS/MFC, so that domain teams have real enterprise contracts to design against.  
+**Narrative:** As the **Tech Lead** with domain engineers, I want to confirm contract owners, quotas, payload samples, and error codes for RMS, RMS/LDD, Stock Service, and WMS/MFC, so that domain teams have real enterprise contracts to design against.  
 **Story Points:** n/a (ongoing discovery, no fixed SP)
 
 ### Acceptance Criteria
 **Scenario 1:** Given the RMS enterprise owner is engaged, when samples are requested, then at least one snapshot and one change-feed payload should be received, and the versioning strategy should be documented.  
-**Scenario 2:** Given the R10/LDD enterprise owner is engaged, when samples are requested, then at least one regular price and one promotion payload should be received, and the timezone handling convention should be confirmed.
+**Scenario 2:** Given the RMS/LDD enterprise owner is engaged, when samples are requested, then at least one regular price and one promotion payload should be received, and the timezone handling convention should be confirmed.
 
 ---
 
@@ -168,7 +168,8 @@
 
 ### Acceptance Criteria
 **Scenario 1:** Given the migration directory with up/down scripts, when `make db-migrate` is executed, then tables for products, product_prices, stock_movements, orders, order_lines, idempotency_keys, and sync_ledger should exist with primary keys and indexes.  
-**Scenario 2:** Given a migration has been applied, when `make db-rollback` is executed, then the schema should revert to the previous version without data loss for pre-existing tables.
+**Scenario 2:** Given the `channel_credentials` table exists, when inspected, then it should have columns for channel, account_id, access_token (encrypted), refresh_token (encrypted), expires_at, token_type, and created_at with a unique constraint on (channel, account_id).  
+**Scenario 3:** Given a migration has been applied, when `make db-rollback` is executed, then the schema should revert to the previous version without data loss for pre-existing tables.
 
 ---
 
@@ -188,13 +189,14 @@
 ## Story 1.8a: Adapter SDK — Auth Interface & Retry Taxonomy
 
 **Gantt Code:** s1  
-**Narrative:** As the **Adapter SDK Engineer**, I want to create the shared adapter SDK with the `AuthProvider` interface and configurable `Retrier` with exponential backoff and retry classification, so that channel adapters have consistent auth and retry mechanics.  
+**Narrative:** As the **Adapter SDK Engineer**, I want to create the shared adapter SDK with the `AuthProvider` interface supporting OAuth authorization code flow, token lifecycle management, and configurable `Retrier` with exponential backoff, so that channel adapters have consistent auth and retry mechanics.  
 **Story Points:** 5
 
 ### Acceptance Criteria
-**Scenario 1:** Given the `AuthProvider` interface with `SignRequest(req *http.Request) error`, when implementations exist for `ShopeeHMACProvider` and `LazadaOAuthProvider`, then both should satisfy the interface and inject correct auth headers.  
-**Scenario 2:** Given a `Retrier` configured with max=3 and backoff=100ms, when a request fails with `PermanentError`, then the retrier should return immediately without retrying, and when it fails with `TransientError`, then it should retry with exponential backoff (100ms, 200ms, 400ms).  
-**Scenario 3:** Given the retry taxonomy supports immediate, deferred, and permanent classifications, when an error is created with code `CHANNEL_QUOTA_EXCEEDED`, then `RetryClass()` should return `Deferred`.
+**Scenario 1:** Given the `AuthProvider` interface with `SignRequest(req *http.Request) error`, `ExchangeAuthCode(code string, state string) (*TokenSet, error)`, and `GetValidToken() (*Token, error)`, when implementations exist for `ShopeeHMACProvider` and `LazadaOAuthProvider`, then both should satisfy the interface and inject correct auth headers.  
+**Scenario 2:** Given a `TokenManager` storing access_token and refresh_token in the `channel_credentials` table, when the access_token has expired and the refresh_token is still valid (TTL > 14 days), then `GetValidToken()` should automatically refresh via the refresh token, persist the new token set to the database and Redis cache, and retry the original request. When the refresh_token is also expired or within 14 days of expiry, then it should emit a `REFRESH_TOKEN_EXPIRING` event.  
+**Scenario 3:** Given a `Retrier` configured with max=3 and backoff=100ms, when a request fails with `PermanentError`, then the retrier should return immediately without retrying, and when it fails with `TransientError`, then it should retry with exponential backoff (100ms, 200ms, 400ms).  
+**Scenario 4:** Given the retry taxonomy supports immediate, deferred, and permanent classifications, when an error is created with code `CHANNEL_QUOTA_EXCEEDED`, then `RetryClass()` should return `Deferred`.
 
 ---
 
@@ -207,7 +209,7 @@
 ### Acceptance Criteria
 **Scenario 1:** Given a `CircuitBreaker` with threshold=5 and half-open timeout=30s, when 5 consecutive requests fail, then subsequent requests should fail-fast with `ErrCircuitOpen`, and after 30s the first request should be allowed as a probe.  
 **Scenario 2:** Given a `QuotaAwareTransport` configured with 100 requests/min, when a request exceeds the quota, then it should be queued and dispatched in the next window.  
-**Scenario 3:** Given a completed adapter SDK call (success or failure), when the result is published, then a `SyncResult` event should be produced to `phoenix.sync.result.v1` with status, latency, and error code.
+**Scenario 3:** Given a completed adapter SDK call (success or failure), when the result is published, then a `SyncResult` event should be produced to `sync.result.v1` with status, latency, and error code.
 
 ---
 
@@ -236,15 +238,15 @@
 
 ---
 
-## Story 1.10a: R10/LDD Price Ingestion & Timezone Normalization
+## Story 1.10a: RMS/LDD Price Ingestion & Timezone Normalization
 
 **Gantt Code:** r1  
-**Narrative:** As the **Price & Promotion Sync Engineer**, I want to implement effective-dated price ingestion from R10/LDD with UTC timezone normalization and overlapping promotion detection, so that price data has a correct time-aware history.  
+**Narrative:** As the **Price & Promotion Sync Engineer**, I want to implement effective-dated price ingestion from RMS/LDD with UTC timezone normalization and overlapping promotion detection, so that price data has a correct time-aware history.  
 **Story Points:** 4
 
 ### Acceptance Criteria
-**Scenario 1:** Given an R10 event with `effective_start: "2026-07-15T08:00:00+07:00"`, when normalized, then the stored `effective_start` should be `2026-07-15T01:00:00Z`.  
-**Scenario 2:** Given 10,000 R10 price records with effective dates, when the engine processes them, then all should be persisted to the `product_prices` table and Price events published in batches.  
+**Scenario 1:** Given an RMS event with `effective_start: "2026-07-15T08:00:00+07:00"`, when normalized, then the stored `effective_start` should be `2026-07-15T01:00:00Z`.  
+**Scenario 2:** Given 10,000 RMS price records with effective dates, when the engine processes them, then all should be persisted to the `product_prices` table and Price events published in batches.  
 **Scenario 3:** Given a promotion with `effective_start=2026-08-01`, when queried at `2026-07-15`, then `IsEffectiveAt()` should return false.
 
 ---
@@ -306,7 +308,7 @@
 | 1.8b SDK Circuit Breaker, Quota & Telemetry | s1 | DEV-04 | QA-02 | 5 | Jul 10 |
 | 1.9a RMS Snapshot Ingestion | p1 | DEV-05 | QA-03 | 3 | Jul 10 |
 | 1.9b Product Delta Engine & Replay | p1 | DEV-05 | QA-03 | 3 | Jul 10 |
-| 1.10a R10/LDD Price Ingestion & Timezone | r1 | DEV-06 | QA-03 | 4 | Jul 09 |
+| 1.10a RMS/LDD Price Ingestion & Timezone | r1 | DEV-06 | QA-03 | 4 | Jul 09 |
 | 1.10b Promotion Precedence & Overlap | r1 | DEV-06 | QA-03 | 4 | Jul 10 |
 | 1.11a Test Fixture Builders | m4 | QA-02 | QA-02 | 3 | Jul 09 |
 | 1.11b Contract Round-Trip Tests | m4 | QA-02 | QA-02 | 3 | Jul 10 |

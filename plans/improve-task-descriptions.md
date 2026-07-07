@@ -186,7 +186,7 @@ Format: "Takes [input from task X], produces [output consumed by task Y]."
 
 | # | Current Name | New Name | Reason |
 |---|---|---|---|
-| r1 | R10 LDD ingestion and effective price engine | (keep) | Accurate |
+| r1 | RMS/LDD ingestion and effective price engine | (keep) | Accurate |
 | r2 | Auto Manual clubpack promotion rules | Promotion business rules, guardrails, and precedence | Name narrow; scope covers overrides, guardrails, expiry, quarantine |
 | r3 | Quota-aware scheduler and drain forecast | **Move to Section 6.3** as: Shared quota-aware scheduler and drain forecast | General-purpose, not price-specific. Rename and relocate. |
 | r4 | Price and promo reconciliation | (keep) | Accurate; reuse shared reconciliation infra from p3b |

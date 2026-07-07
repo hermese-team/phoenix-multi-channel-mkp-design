@@ -15,9 +15,9 @@
 | DEV-02 | Backend Foundation | Continue f2 (Kafka), continue f3 (PostgreSQL), support domain ingestion |
 | DEV-03 | Contracts & Schema | Finalize m4 contracts, support p1/r1 schema refinement |
 | DEV-04 | Adapter SDK | Continue s1 (quota, circuit breaker, telemetry), start s2 (capability registry) |
-| DEV-05 | Product Sync | Continue p1 (RMS ingestion implementation), start p2 (mapping design) |
-| DEV-06 | Price & Promotion | Continue r1 (R10/LDD implementation), r2 (promotion rules engine) |
-| DEV-07 | Order Sync | Start o1a (order ingestion shared infra), start o2 (canonical normalization design) |
+| DEV-05 | Product Sync | Continue p1 (RMS ingestion implementation), start p4 (channel listing pull schema design), start p2 (mapping design) |
+| DEV-06 | Price & Promotion | Continue r1 (RMS/LDD implementation), r2 (promotion rules engine) |
+| DEV-07 | Order Sync | o1a (webhook intake: archival, Redis dedup, Kafka quorum), o1c (message classifier & router), start o2 (canonical normalization design) |
 | DEV-08 | Fulfilment Routing | Support m3 dependency discovery (WMS/MFC contract), design o3 (fulfilment routing) |
 | DEV-09 | Stock Sync + Redis | Start f4 (Redis quota primitives), start i1 (stock ingestion design) |
 | DEV-10 | Stock Orchestration | Support i1 design, start i2 (ATS calculation design) |
@@ -31,11 +31,11 @@
 ## Story 2.1: External Dependency Contracts Finalized
 
 **Gantt Code:** m3  
-**Narrative:** As the **Tech Lead**, I want to finalize and document confirmed payload samples, error codes, and replay behavior for RMS, R10/LDD, Stock Service, and WMS/MFC, so that domain teams build against real enterprise contracts.  
+**Narrative:** As the **Tech Lead**, I want to finalize and document confirmed payload samples, error codes, and replay behavior for RMS, RMS/LDD, Stock Service, and WMS/MFC, so that domain teams build against real enterprise contracts.  
 **Story Points:** n/a (completion gate)
 
 ### Acceptance Criteria
-**Scenario 1:** Given RMS, R10/LDD, Stock Service, and WMS/MFC owners have provided samples, when the ADRs are written, then each should include payload format, versioning, error codes, and replay behavior.  
+**Scenario 1:** Given RMS, RMS/LDD, Stock Service, and WMS/MFC owners have provided samples, when the ADRs are written, then each should include payload format, versioning, error codes, and replay behavior.  
 **Scenario 2:** Given an enterprise API returns an undocumented error code, when the ingestion engine encounters it, then it should classify it as `UNKNOWN_ERROR` and route to DLQ for manual inspection.
 
 ---
@@ -101,6 +101,18 @@
 
 ---
 
+## Story 2.6b: Auth Token Cache in Redis
+
+**Gantt Code:** f4  
+**Narrative:** As the **Stock Sync Engineer**, I want to implement TTL-based access token caching in Redis with automatic expiry, so that channel adapters retrieve valid tokens with low latency without hitting the database on every request.  
+**Story Points:** 2
+
+### Acceptance Criteria
+**Scenario 1:** Given a valid access_token is stored in Redis with TTL = token_expiry - now, when `GetCachedToken(channel, account_id)` is called, then it should return the cached token. When the TTL has expired, then it should return `nil` and the caller should refresh via the TokenManager.  
+**Scenario 2:** Given a token is refreshed and a new token set is stored, when the cache is updated, then the old Redis entry should be overwritten and the new TTL should reflect the new expiry.
+
+---
+
 ## Story 2.7: Capability Registry — Field Support Matrix
 
 **Gantt Code:** s2  
@@ -139,14 +151,23 @@
 
 ---
 
-## Story 2.10: R10/LDD Price Ingestion Completion
+## Story 2.9b: Channel Listing Pull — Schema Design & Cross-Reference Prep
+
+**Gantt Code:** p4  
+**Narrative:** As the **Product Sync Engineer**, I want to design the channel listing pull schema, cross-reference engine, and match-status data model, so that once channel adapters are available, we can pull existing listings from seller platforms and match them against the RMS product master.  
+**Story Points:** 3
+
+### Acceptance Criteria
+**Scenario 1:** Given the `channel_listings` table is designed, when inspected, then it should have columns for channel, account_id, listing_id, sku_or_reference, title, price, status, listing_url, fetched_at, and a nullable foreign key reference to the RMS product SKU (null until matched).  
+**Scenario 2:** Given the cross-reference engine design, when an RMS product and a channel listing are compared, then the engine should return a match status: `MATCHED` (SKU match + fields in sync), `FIELD_DRIFTED` (SKU match but fields differ), `MISSING_ON_CHANNEL` (RMS product not found on channel), `MISSING_IN_RMS` (channel listing has no RMS counterpart), or `DEACTIVATED_ON_CHANNEL`.  
+**Scenario 3:** Given RMS test data and a Shopee simulator returning test listings, when the cross-reference engine processes them, then it should correctly classify each listing status and persist the results to the `channel_listings` table.
 
 **Gantt Code:** r1  
-**Narrative:** As the **Price & Promotion Sync Engineer**, I want to complete the R10/LDD price ingestion engine with bulk load, effective-date windows, product/store scope resolution, and replay handling, so that price data flows reliably from R10/LDD to the price topic.  
+**Narrative:** As the **Price & Promotion Sync Engineer**, I want to complete the RMS/LDD price ingestion engine with bulk load, effective-date windows, product/store scope resolution, and replay handling, so that price data flows reliably from RMS/LDD to the price topic.  
 **Story Points:** 5
 
 ### Acceptance Criteria
-**Scenario 1:** Given 10,000 R10 price records with effective dates, when the engine processes them, then all should be persisted to `product_prices` and Price events published in batches.  
+**Scenario 1:** Given 10,000 RMS price records with effective dates, when the engine processes them, then all should be persisted to `product_prices` and Price events published in batches.  
 **Scenario 2:** Given a price event that has already been ingested (duplicate source_version), when replayed, then it should be rejected with `DUPLICATE_EVENT`.  
 **Scenario 3:** Given a price record with both product-level and store-level scope, when `GetEffectivePrice(sku, store, timestamp)` is called, then the store-level price should take precedence.
 
@@ -160,8 +181,8 @@
 
 ### Acceptance Criteria
 **Scenario 1:** Given a clubpack promotion with multiplicand=4 and base price=$5.00, when `CalculatePromoPrice()` is called, then the result should be $20.00.  
-**Scenario 2:** Given a SKU marked as `pricing_owner=MANUAL` on Lazada, when an R10 price update arrives, then the engine should preserve the manual price and emit a `MANUAL_OVERRIDE_PRESERVED` event.  
-**Scenario 3:** Given a UPC is marked with `price_field=MANUAL` for Shopee only, when an R10 price update arrives, then the engine should skip the price up-sync to Shopee but still sync to Lazada, and emit a `MANUAL_FIELD_SKIPPED` event with the channel and field name.
+**Scenario 2:** Given a SKU marked as `pricing_owner=MANUAL` on Lazada, when an RMS price update arrives, then the engine should preserve the manual price and emit a `MANUAL_OVERRIDE_PRESERVED` event.  
+**Scenario 3:** Given a UPC is marked with `price_field=MANUAL` for Shopee only, when an RMS price update arrives, then the engine should skip the price up-sync to Shopee but still sync to Lazada, and emit a `MANUAL_FIELD_SKIPPED` event with the channel and field name.
 
 ---
 
@@ -192,15 +213,28 @@
 
 ---
 
-## Story 2.15: Order Ingestion — Raw Archival & Kafka Quorum
+## Story 2.15: Webhook Intake — Raw Archival, Redis Dedup & Kafka Quorum
 
 **Gantt Code:** o1a  
-**Narrative:** As the **Order Sync Engineer**, I want to build the shared order ingestion infrastructure with raw payload archival to object storage and Kafka quorum acknowledgement, so that all channel adapters use a consistent, durable inbound pipeline.  
+**Narrative:** As the **Order Sync Engineer**, I want to build the shared push/webhook intake infrastructure with raw payload archival to object storage, Redis fast-path dedup, and Kafka quorum acknowledgement for all push types (order, product, price, stock status), so that all channel adapters use a consistent, durable inbound pipeline returning HTTP 202 immediately.  
+**Story Points:** 4
+
+### Acceptance Criteria
+**Scenario 1:** Given an incoming push payload (order webhook, product update notification, or price change event), when the intake pipeline receives it, then the raw payload should be stored in MinIO/S3 with a content-addressable reference and the Kafka event should contain the storage URI.  
+**Scenario 2:** Given a valid push payload published to the correct domain topic (`order.ingest.<channel>.v1`, `product.notification.v1`, or `price.notification.v1`), when Kafka producer receives ISR acknowledgement, then the payload should be considered accepted and return HTTP 202.  
+**Scenario 3:** Given an incoming push with a duplicate `push_id` already processed within the TTL window (e.g., 5 minutes), when the Redis fast-path dedup check runs, then it should return HTTP 200 (OK, already processed) without archival or Kafka publish.
+
+---
+
+## Story 2.15b: Webhook Message Classifier & Router
+
+**Gantt Code:** o1c  
+**Narrative:** As the **Order Sync Engineer**, I want to build the shared webhook message classifier and router that inspects incoming push payloads and routes them to the correct domain Kafka topic, so that downstream domain processors receive type-appropriate messages.  
 **Story Points:** 3
 
 ### Acceptance Criteria
-**Scenario 1:** Given an incoming order webhook payload, when the ingestion pipeline receives it, then the raw payload should be stored in MinIO/S3 with a content-addressable reference and the Kafka event should contain the storage URI.  
-**Scenario 2:** Given a valid order published to `phoenix.order.ingest.v1`, when Kafka producer receives ISR acknowledgement, then the order should be considered accepted and return HTTP 202.
+**Scenario 1:** Given an incoming push payload from Shopee with topic header `order.created`, when the classifier inspects it, then it should map to canonical event type `ORDER_CREATED` and publish to `order.ingest.shopee.v1`. Given a payload with `product.updated`, it should map to `PRODUCT_UPDATED` and publish to `product.notification.v1`.  
+**Scenario 2:** Given an unknown or unmappable push type, when the classifier receives it, then it should route to a dead-letter topic with `UNKNOWN_PUSH_TYPE` and emit a governance event.
 
 ---
 
@@ -262,14 +296,17 @@
 | 2.4 PostgreSQL Read-Models & Finalize | f3 | DEV-02 | QA-02 | 4 | Jul 18 |
 | 2.5 Redis Token Bucket Lua Primitives | f4 | DEV-09 | QA-05 | 4 | Jul 17 |
 | 2.6 Redis Lua Failover & Rate-Limit Fixtures | f4 | DEV-09 | QA-05 | 3 | Jul 19 |
+| 2.6b Auth Token Cache in Redis | f4 | DEV-09 | QA-05 | 2 | Jul 21 |
 | 2.7 Capability Registry — Field Support Matrix | s2 | DEV-04 | QA-02 | 5 | Jul 18 |
 | 2.8 Capability Registry — Writer Ownership & Kill Switches | s2 | DEV-04 | QA-02 | 5 | Jul 22 |
 | 2.9 RMS Ingestion — Batch & Replay | p1 | DEV-05 | QA-03 | 5 | Jul 22 |
-| 2.10 R10/LDD Price Ingestion Complete | r1 | DEV-06 | QA-03 | 5 | Jul 22 |
+| 2.9b Channel Listing Pull — Schema & Cross-Reference Prep | p4 | DEV-05 | QA-03 | 3 | Jul 24 |
+| 2.10 RMS/LDD Price Ingestion Complete | r1 | DEV-06 | QA-03 | 5 | Jul 22 |
 | 2.11 Promotion Business Rules Engine | r2 | DEV-06 | QA-03 | 3 | Jul 16 |
 | 2.12 Promotion Guardrails & Quarantine | r2 | DEV-06 | QA-03 | 2 | Jul 17 |
 | 2.13 Effective Price Calculation (Base + Promotion) | r1 | DEV-06 | QA-03 | 4 | Jul 22 |
-| 2.15 Order Ingestion — Raw Archival & Kafka Quorum | o1a | DEV-07 | QA-04 | 3 | Jul 18 |
+| 2.15 Webhook Intake — Archival, Dedup & Kafka Quorum | o1a | DEV-07 | QA-04 | 4 | Jul 18 |
+| 2.15b Webhook Message Classifier & Router | o1c | DEV-07 | QA-04 | 3 | Jul 22 |
 | 2.16 Order Ingestion — Worker Pool Isolation | o1a | DEV-07 | QA-04 | 2 | Jul 19 |
 | 2.17 Admin UX Flows & Role Definitions | a1 | DEV-04 | QA-06 | 4 | Jul 18 |
 | 2.18 Admin Audit Trail & Retry Authorization | a1 | DEV-04 | QA-06 | 3 | Jul 24 |

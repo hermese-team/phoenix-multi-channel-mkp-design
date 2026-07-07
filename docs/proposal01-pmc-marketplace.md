@@ -36,7 +36,7 @@ Recommended first quick win by end of August:
 
 ## 2. Current PRD Functional Baseline
 
-The PRD defines the current Lotus's Marketplace System as an own-build WMS + OMS platform connected to RMS, Stock Service, R10, ReSA, Sale Adaptor, API Gateway, Seller Centers, CMA, MKP Web, and Truck Management.
+The PRD defines the current Lotus's Marketplace System as an own-build WMS + OMS platform connected to RMS, Stock Service, RMS/LDD, ReSA, Sale Adaptor, API Gateway, Seller Centers, CMA, MKP Web, and Truck Management.
 
 ### WMS functions in the current PRD — excluded from Phoenix scope
 
@@ -52,7 +52,7 @@ The PRD defines the current Lotus's Marketplace System as an own-build WMS + OMS
 |---|---|---|
 | 4. Get Product from Seller Center | Pull products every 4 hours and store SKU-platform parameters: Auto/Manual, price override, promotion override, share percentage, clubpack quantity. | Must be rebuilt as channel catalog ingestion and mapping service. |
 | 5. Get Order to Fulfilment | Poll orders, route to WMS, split tracking, ready-to-ship, receive AWB, capture sale, print, pallet, truck. | Phoenix owns order ingestion, reservation, external hand-off, and seller status sync only. All warehouse execution remains external. |
-| 6. Price and Promotion Sync | Read R10/LDD, map seller SKU, apply A/M mode, clubpack, promotion dates, compare previous price, call platform APIs only on change. | High-priority quick win. Delta sync can drastically shorten campaign readiness. |
+| 6. Price and Promotion Sync | Read RMS/LDD, map seller SKU, apply A/M mode, clubpack, promotion dates, compare previous price, call platform APIs only on change. | High-priority quick win. Delta sync can drastically shorten campaign readiness. |
 | 7. Stock Sync | Calculate available stock = base stock - sales - pending - unpaid - damage - flash reserve, allocate by share, sync to channels. | Highest-priority quick win. Replace with real-time ATS plus dynamic allocation. |
 | 8. Update Order Status and Capture Sale | Requires AWB before Auto POS capture, maps sale transaction to tracking code, retries failures. | Phoenix consumes the required external status/reference, performs idempotent capture where retained, and synchronizes seller status; AWB generation remains outside Phoenix. |
 | 9. Put-to-Pallet and Truck Management | Records truck, pallet, order, and tracking mapping; posts shipped status. | Out of scope. |
@@ -104,7 +104,7 @@ Detailed engineering design, capacity model, runtime flows, deployment topology,
 | Existing OMS order partitions | Reuse `phoenix-oms-mkp-service`: monthly `orders`, `order_items`, `order_status_history`, and `packages` partitions; non-partitioned `order_refs`/`package_refs`; idempotent three-month-ahead partition creation; guarded archive tooling. |
 | Redis HA / cluster-ready | Real-time ATS and reservations on an HA replication group; separate disposable cache/rate-limit deployment; cluster-compatible keys for future horizontal scaling. |
 | Kafka | Product, price, promo, stock, allocation, sync command, sync result, order, reservation, capture-sale events. |
-| Object storage | Raw RMS/R10/Stock Service snapshots, adapter request/response archive, and reconciliation evidence. |
+| Object storage | Raw RMS/LDD/Stock Service snapshots, adapter request/response archive, and reconciliation evidence. |
 | OpenSearch | Optional application and platform log search with short retention. It is not a BI store or source of transactional truth. |
 
 ### 3.4 Kafka Topic Model
@@ -298,7 +298,7 @@ Goal: Meet midnight SLA for campaign eligibility by replacing long batch sync wi
 
 Scope:
 
-- R10/LDD ingestion.
+- RMS/LDD ingestion.
 - Price/promotion effective-state calculation.
 - Clubpack and Auto/Manual rules.
 - Delta compare against last synced state.
@@ -313,7 +313,7 @@ Estimated effort:
 |---|---:|
 | Discovery and .NET adapter reverse engineering | 12 |
 | Architecture, event contracts, data model | 8 |
-| R10/LDD ingestion | 12 |
+| RMS/LDD ingestion | 12 |
 | Price/promotion calculation engine | 16 |
 | Delta detection and sync ledger | 12 |
 | Kafka sync command flow | 8 |
@@ -410,7 +410,7 @@ Estimated August milestone effort:
 | Architecture and contracts | 5 | 1 | 6 |
 | PostgreSQL schemas and sync ledger | 7 | 2 | 3 |
 | Kafka command/result flow | 7 | 2 | 3 |
-| R10/LDD ingestion | 12 | 3 | 3 |
+| RMS/LDD ingestion | 12 | 3 | 3 |
 | Price/promotion engine | 15 | 5 | 4 |
 | Channel adapter: Shopee | 13 | 5 | 2 |
 | Channel adapter: Lazada | 11 | 5 | 2 |
@@ -465,7 +465,7 @@ At a stable squad of 4 developers plus 1 Squad Lead / Tech Lead, the scoped repl
 
 | Feature | Manhours |
 |---|---:|
-| R10/LDD ingestion | 120 |
+| RMS/LDD ingestion | 120 |
 | Price/promotion effective-state engine | 160 |
 | Clubpack, Auto/Manual, promotion active rules | 80 |
 | Delta detection and last-synced state ledger | 120 |
@@ -605,7 +605,7 @@ No Phoenix engineering effort is allocated to receiving, IBT, warehouse screens,
 |---|---|---|
 | Platform API rate limits or smaller-than-advertised bulk sizes block fast sync | Miss campaign SLA | Shared 80/20 quota budget, dynamic batch sizing, priority queues, changed-SKU-only sync, drain-time forecast, dry-run capacity tests, and quota negotiation. |
 | Old .NET adapter source is incomplete or outdated | Reverse engineering benefit lower than expected | Start with source audit in week 1; produce adapter spec and contract tests before implementation. |
-| Stock Service/R10/RMS source data arrives late | Phoenix cannot meet end-to-end SLA alone | Dashboard source arrival time separately from Phoenix processing time. |
+| Stock Service/RMS (pricing) source data arrives late | Phoenix cannot meet end-to-end SLA alone | Dashboard source arrival time separately from Phoenix processing time. |
 | Redis ATS inconsistency after outage | Stock correctness risk | Write stock ledger to PostgreSQL, replay Kafka events, scheduled reconciliation jobs. |
 | Mart scale is much larger than marketplace scale | Performance and cost risk | Separate mart fanout architecture, store-level partitioning, priority queues, and phased rollout. |
 | Big-bang replacement creates operational risk | Business disruption | Use strangler migration, parallel run, feature flags, and rollback per channel/function. |
@@ -643,7 +643,7 @@ These features are not required to fix the pain points, but they can help positi
 |---|---|
 | Price/promo delta | Only changed Auto SKUs generate sync commands; Manual SKUs are skipped with reason. |
 | Clubpack | Clubpack price calculation matches legacy output for sampled SKUs. |
-| Promotion | Active and expired promotion decisions match R10/LDD rules. |
+| Promotion | Active and expired promotion decisions match RMS/LDD rules. |
 | Channel adapters | Shopee and Lazada pilot adapters can send updates, handle retries, and record platform responses. |
 | Performance | 200k SKU scan completes and changed-SKU command generation stays within agreed SLA. |
 | Seller quota | All adapter replicas combined stay within 100 requests/minute; batch sizes 1/20/50/100 and `429` retry behavior are tested; dashboard reports effective items/minute and drain time. |

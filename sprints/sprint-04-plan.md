@@ -15,14 +15,14 @@
 | DEV-02 | Backend Foundation | Infrastructure support, K8s resource tuning |
 | DEV-03 | Contracts & Schema | p4 listing read-back schema support, schema registry ops |
 | DEV-04 | Adapter SDK | s1/s2 adapter support, a5 design (sync telemetry) |
-| DEV-05 | Product Sync | p3a (product outbound command generation), a4 (product sync config) |
+| DEV-05 | Product Sync | p3a (diff-based outbound command generation from RMS-vs-channel diff), p4 (listing pull + cross-ref completion), a4 (product sync config) |
 | DEV-06 | Price & Promotion | r4 (price reconciliation), r3 continue (scheduler) |
-| DEV-07 | Order Sync | o1b (polling cursor management), a2 order monitoring continue |
-| DEV-08 | Fulfilment Routing | o3 continue (fulfilment routing), o4 design (cancellation flow) |
+| DEV-07 | Order Sync | o1b (polling cursor + backup safety-net), o1d (enrichment orchestrator completion), a2 order monitoring continue |
+| DEV-08 | Fulfilment Routing | o3 continue (Redis priority scheduling + MFC dispatch), o4 design (cancellation flow) |
 | DEV-09 | Stock Sync + Redis | i2 continue (ATS), i3 design (stock orchestration) |
 | DEV-10 | Stock Orchestration | i3 (stock sync orchestration & coalescing) |
-| DEV-11 | Shopee/Lazada | c1 (Shopee outbound), c2 (Lazada outbound) |
-| DEV-12 | TikTok/Amaze | c3 (TikTok inbound + outbound), c4 (Amaze/AxtraMall) |
+| DEV-11 | Shopee/Lazada | c1 (Shopee outbound + push type mapping), c2 (Lazada outbound + push type mapping) |
+| DEV-12 | TikTok/Amaze | c3 (TikTok push type mapping + inbound + outbound), c4 (Amaze push type mapping + inbound + outbound) |
 | QA-01 | QA Lead | Progressive SIT scenarios, E2E test planning |
 | QA-02 | Contract QA | s3 continue (TikTok/Amaze simulators), adapter contract tests |
 | QA-03 | Domain QA | p3a outbound tests, r4 reconciliation tests, i3 stock tests |
@@ -35,7 +35,7 @@
 ## Story 4.1: Product Outbound — Desired-State to Commands
 
 **Gantt Code:** p3a  
-**Narrative:** As the **Product Sync Engineer**, I want to transform desired-state records into channel-neutral outbound commands with coalescing of obsolete pending updates, so that only the latest product state reaches each channel.  
+**Narrative:** As the **Product Sync Engineer**, I want to transform RMS-vs-channel diff records from the desired-state ledger (action intent: CREATE/UPDATE/DEACTIVATE) into channel-neutral outbound commands with coalescing of obsolete pending updates, so that only the latest product state reaches each channel.  
 **Story Points:** 3
 
 ### Acceptance Criteria
@@ -68,28 +68,43 @@
 
 ---
 
-## Story 4.4: Polling Cursor — Persistence & Catch-Up Mode
+## Story 4.4: Polling Cursor — Persistence, Catch-Up & Backup Safety-Net
 
 **Gantt Code:** o1b  
-**Narrative:** As the **Order Sync Engineer**, I want to implement cursor persistence in PostgreSQL and catch-up mode for backfilling historical orders, so that the polling framework is reliable and can recover from gaps.  
-**Story Points:** 2
+**Narrative:** As the **Order Sync Engineer**, I want to implement cursor persistence in PostgreSQL, catch-up mode for backfilling, and backup safety-net polling using a Redis `safety-net:{channel}:processed` set (TTL 1800s) to recover missed push notifications, so that the polling framework reliably covers push notification gaps.  
+**Story Points:** 3
 
 ### Acceptance Criteria
 **Scenario 1:** Given cursor at "cursor_100" and 5 new orders with cursor "cursor_105", when the poll completes, then the cursor should update to "cursor_105" in PostgreSQL.  
-**Scenario 2:** Given catch-up mode with date range 2026-07-01 to 2026-07-31, when the adapter runs in catch-up mode, then it should page through all orders respecting rate limits and ingest each via o1a.
+**Scenario 2:** Given catch-up mode with date range 2026-07-01 to 2026-07-31, when the adapter runs in catch-up mode, then it should page through all orders respecting rate limits and ingest each via o1c.  
+**Scenario 3:** Given backup safety-net polling runs every 15 min per channel with a 30-minute time-window overlap, Redis `safety-net:{channel}:processed` set (TTL 1800s) contains "O-100" and "O-101", and the scan returns "O-100", "O-101", "O-102", when the safety-net checks via SMISMEMBER, then "O-100" and "O-101" should be skipped as already processed, "O-102" should be forwarded to o1a and inserted into the Redis set with EX 1800.
 
 ---
 
-## Story 4.5: Fulfilment Routing — Correlation Tracking & Rejection Codes
+## Story 4.4b: Detail Enrichment Orchestrator — Bulk Fetcher & Failure Handling
 
-**Gantt Code:** o3  
-**Narrative:** As the **Fulfilment Routing Engineer**, I want to complete the fulfilment routing engine with stable rejection reason codes, correlation tracking, and separate acceptance vs fulfilment timing, so that the order→fulfilment pipeline is production-ready.  
-**Story Points:** 4
+**Gantt Code:** o1d  
+**Narrative:** As the **Order Sync Engineer**, I want to complete the detail enrichment orchestrator with rate-limited bulk API integration via r3 scheduler and partial batch failure handling, so that enriched order data is reliably produced for canonical normalization.  
+**Story Points:** 3
 
 ### Acceptance Criteria
-**Scenario 1:** Given a successful WMS POST, when the hand-off completes, then the order should have `fulfilment_correlation_id` populated and `fulfilment_status=HANDED_OFF`.  
-**Scenario 2:** Given WMS rejects an order with reason code `INVALID_ADDRESS`, when processed, then it should classify as `PERMANENT_FAILURE` and record the WMS reason code.  
-**Scenario 3:** Given an order accepted at T1 and handed off at T2, when queried, then `accepted_at`=T1, `handed_off_at`=T2, and `platform_wait_time`=T2-T1.
+**Scenario 1:** Given a coalesced batch of 10 `order.created` notifications, when the bulk fetcher invokes the channel API via r3 scheduler, then the API call should respect the channel's per-minute quota and use the minimum batch size that fits within remaining quota.  
+**Scenario 2:** Given a bulk API returns 8 enriched payloads and 2 errors (1 retryable, 1 permanent), when partial failure handling runs, then the retryable item should be re-queued for the next batch window, the permanent failure should route to DLQ with a governance event, and the 8 successful items should be published for o2 normalization.
+
+---
+
+## Story 4.5: Fulfilment Routing — Redis Priority Scheduling & MFC Dispatch
+
+**Gantt Code:** o3  
+**Narrative:** As the **Fulfilment Routing Engineer**, I want to implement Redis ZSET priority queues for fulfilment scheduling with weighted round-robin (72:8:20 instant/express/normal), SLA deadline preemption (orders within 30 min of deadline bypass weights), and a rate-limited MFC dispatcher with token bucket, so that fulfilment units are dispatched in priority order within MFC's capacity.  
+**Story Points:** 5
+
+### Acceptance Criteria
+**Scenario 1:** Given fulfilment units for the same warehouse with instant, express, and normal priorities, when the scheduler runs, then it should dispatch following the 72:8:20 weight ratio over 100 consecutive picks.  
+**Scenario 2:** Given a fulfilment unit with `deadline_at` within 30 minutes of the current time, when the scheduler picks, then it should bypass the weight ratio and dispatch the urgent unit immediately regardless of priority type.  
+**Scenario 3:** Given MFC's token bucket has 300 tokens and refills at 300/hour, when dispatch requests arrive at sustained rate, then the scheduler should never exceed the available tokens and should defer excess to the next cycle.  
+**Scenario 4:** Given a successful MFC POST /request_pick, when the dispatcher completes, then it should record the result in `fulfilment_dispatch`, consume a token, and remove the in-flight guard.  
+**Scenario 5:** Given a WMS POST returns a transient HTTP 429, when the dispatcher handles it, then the fulfilment unit should be re-enqueued with exponential backoff and not exceed the retry budget before escalating to DLQ.
 
 ---
 
@@ -146,15 +161,17 @@
 
 ---
 
-## Story 4.10: TikTok Adapter — Auth & Inbound Orders
+## Story 4.10: TikTok Adapter — OAuth Flow, Push Type Mapping & Inbound Orders
 
 **Gantt Code:** c3  
-**Narrative:** As the **TikTok/Channel Adapter Engineer**, I want to build the TikTok adapter with OAuth token management and polling-based order ingestion using the o1b framework, so that TikTok orders enter the Phoenix pipeline.  
-**Story Points:** 3
+**Narrative:** As the **TikTok/Channel Adapter Engineer**, I want to build the TikTok adapter with OAuth authorization code flow, push type mapping to canonical event types consumed by o1c, and polling-based order ingestion using the o1b framework, so that TikTok orders enter the Phoenix pipeline.  
+**Story Points:** 5
 
 ### Acceptance Criteria
-**Scenario 1:** Given a TikTok access token expires, when the adapter makes an API call, then it should refresh via the refresh token and retry.  
-**Scenario 2:** Given the TikTok adapter polls with cursor "cursor_50", when 2 new orders are found, then they should be ingested via o1a and the cursor should advance.
+**Scenario 1:** Given the TikTok auth button is clicked and the callback URL receives the auth_code, when the OAuth flow executes, then the state/CSRF token should be validated, the auth_code should be exchanged for an access_token and refresh_token via `TokenManager.ExchangeAuthCode()`, and the token set should be persisted to the `channel_credentials` table and Redis cache.  
+**Scenario 2:** Given a valid access_token is cached in Redis, when a TikTok API call is made, then the OAuth bearer token should be injected. If the access_token expires, the TokenManager should auto-refresh via the refresh_token, persist the new set, and retry.  
+**Scenario 3:** Given a TikTok push notification with event type `TRADE_ORDER_CREATED`, when the adapter processes it, then it should map to canonical `ORDER_CREATED` and forward to o1c for classification. Given an `ITEM_STOCK_UPDATE` push, map to `STOCK_CHANGED`.  
+**Scenario 4:** Given the TikTok adapter polls with cursor "cursor_50", when 2 new orders are found, then they should be ingested via o1c and the cursor should advance.
 
 ---
 
@@ -170,15 +187,17 @@
 
 ---
 
-## Story 4.12: Amaze/AxtraMall Adapter — Inbound Orders
+## Story 4.12: Amaze/AxtraMall Adapter — Auth, Push Type Mapping & Inbound Orders
 
 **Gantt Code:** c4  
-**Narrative:** As the **TikTok/Channel Adapter Engineer**, I want to build the Amaze/AxtraMall adapter with polling-based order ingestion, so that Amaze/AxtraMall orders enter the Phoenix pipeline.  
+**Narrative:** As the **TikTok/Channel Adapter Engineer**, I want to build the Amaze/AxtraMall adapter with auth flow integration via s1 TokenManager, push type mapping to canonical event types, and polling-based order ingestion, so that Amaze/AxtraMall orders enter the Phoenix pipeline.  
 **Story Points:** 3
 
 ### Acceptance Criteria
-**Scenario 1:** Given the Amaze polling adapter is configured, when new orders exist since the last cursor, then they should be ingested through o1a and the cursor should advance.  
-**Scenario 2:** Given the Amaze API returns an auth error, when the adapter detects it, then it should refresh credentials and retry.
+**Scenario 1:** Given the Amaze auth flow completes and tokens are persisted via the s1 TokenManager, when the polling adapter runs, then it should use the cached access_token from Redis for API calls. If the token expires, the TokenManager should auto-refresh.  
+**Scenario 2:** Given an Amaze push notification with event type `order.placed`, when the adapter processes it, then it should map to canonical `ORDER_CREATED` and forward to o1c for classification.  
+**Scenario 3:** Given the Amaze polling adapter is configured, when new orders exist since the last cursor, then they should be ingested through o1c and the cursor should advance.  
+**Scenario 4:** Given the Amaze API returns an auth error (401), when the adapter detects it, then the TokenManager should attempt a refresh and retry. If the refresh also fails, emit a `REFRESH_TOKEN_EXPIRED` governance event.
 
 ---
 
@@ -209,7 +228,7 @@
 ## Story 4.15: Listing Read-Back — Channel Listing Ingestion
 
 **Gantt Code:** p4  
-**Narrative:** As the **Product Sync Engineer**, I want to ingest listing data from seller centers via channel read-back APIs and store it in the channel_listings table, so that Phoenix has visibility into actual channel listing state.  
+**Narrative:** As the **Product Sync Engineer**, I want to continue populating the `channel_listings` table by pulling existing product data from seller centers via channel read-back APIs and cross-referencing against the RMS product master, so that the initial match status is established before outbound commands are generated.  
 **Story Points:** 3
 
 ### Acceptance Criteria
@@ -264,8 +283,8 @@
 **Story Points:** 5
 
 ### Acceptance Criteria
-**Scenario 1:** Given the f6 load harness, when the order generator runs at 250 ops/sec for 2 minutes, then 30,000 valid canonical Order protobufs should be produced.  
-**Scenario 2:** Given the channel API simulator configured for load testing, when 250 requests/sec are sent, then all should receive a valid response within 500ms and no simulator errors should occur.  
+**Scenario 1:** Given the f6 load harness, when the order generator runs at 250 aggregate ops/sec across all channel simulators for 2 minutes, then 30,000 valid canonical Order protobufs should be produced across all channels.  
+**Scenario 2:** Given the channel API simulators (Shopee + Lazada + TikTok + Amaze) configured for aggregate load testing, when 250 requests/sec are sent across all simulators, then all should receive a valid response within 500ms and no simulator errors should occur.  
 **Scenario 3:** Given the measurement scripts, when a 250 ops/sec scenario completes, then latency distribution, throughput, and error rate should be reported.
 
 ---
@@ -289,20 +308,21 @@
 | 4.1 Product Outbound — Desired-State to Commands | p3a | DEV-05 | QA-03 | 3 | Aug 14 |
 | 4.2 Product Outbound — SDK Integration & Result Classification | p3a | DEV-05 | QA-03 | 2 | Aug 15 |
 | 4.3 Polling Cursor — Distributed Redis Leases | o1b | DEV-07 | QA-04 | 2 | Aug 14 |
-| 4.4 Polling Cursor — Persistence & Catch-Up | o1b | DEV-07 | QA-04 | 2 | Aug 15 |
-| 4.5 Fulfilment Routing — Correlation & Rejection Codes | o3 | DEV-08 | QA-04 | 4 | Aug 19 |
+| 4.4 Polling Cursor — Persistence, Catch-Up & Backup Safety-Net | o1b | DEV-07 | QA-04 | 2 | Aug 15 |
+| 4.4b Detail Enrichment Orchestrator — Bulk Fetcher & Failure Handling | o1d | DEV-07 | QA-04 | 3 | Aug 18 |
+| 4.5 Fulfilment Routing — Redis Priority Scheduling & MFC Dispatch | o3 | DEV-08 | QA-04 | 5 | Aug 21 |
 | 4.6 Stock Orchestration — ATS to Desired Stock Commands | i3 | DEV-10 | QA-03 | 3 | Aug 16 |
 | 4.7 Stock Orchestration — Campaign Prioritization | i3 | DEV-10 | QA-03 | 3 | Aug 19 |
 | 4.8 Shopee Outbound — Product, Price & Stock Sync | c1 | DEV-11 | QA-04 | 5 | Aug 20 |
 | 4.9 Lazada Outbound — Product, Price & Stock Sync | c2 | DEV-11 | QA-04 | 5 | Aug 20 |
-| 4.10 TikTok — Auth & Inbound Orders | c3 | DEV-12 | QA-04 | 3 | Aug 17 |
+| 4.10 TikTok — OAuth Flow, Push Type Mapping & Inbound Orders | c3 | DEV-12 | QA-04 | 5 | Aug 17 |
 | 4.11 TikTok — Outbound Product & Stock Sync | c3 | DEV-12 | QA-04 | 3 | Aug 20 |
-| 4.12 Amaze/AxtraMall — Inbound Orders | c4 | DEV-12 | QA-04 | 3 | Aug 18 |
+| 4.12 Amaze/AxtraMall — Auth, Push Type Mapping & Inbound Orders | c4 | DEV-12 | QA-04 | 3 | Aug 18 |
 | 4.13 Amaze/AxtraMall — Outbound Sync | c4 | DEV-12 | QA-04 | 2 | Aug 21 |
 | 4.14 Price Reconciliation Start | r4 | DEV-06 | QA-03 | 3 | Aug 19 |
 | 4.15 Listing Read-Back — Channel Ingestion | p4 | DEV-05 | QA-03 | 3 | Aug 20 |
 | 4.16 Price Read-Back from Seller Centers | p4 | DEV-05 | QA-03 | 3 | Aug 21 |
 | 4.18 Admin Portal — Order Detail & Fulfilment Status | a2 | DEV-07 | QA-06 | 3 | Aug 19 |
 | 4.19 Admin Portal — Product Sync & Price Config | a4 | DEV-05 | QA-06 | 4 | Aug 21 |
-| 4.20 Load Harness — Generators & 250 ops/sec | f6 | QA-05 | QA-05 | 5 | Aug 19 |
-| 4.21 Load Harness — 500 ops/sec & Failure Injection | f6 | QA-05 | QA-05 | 3 | Aug 21 |
+| 4.20 Load Harness — Generators & 250 Aggregate ops/sec | f6 | QA-05 | QA-05 | 5 | Aug 19 |
+| 4.21 Load Harness — 500 Aggregate ops/sec & Failure Injection | f6 | QA-05 | QA-05 | 3 | Aug 21 |

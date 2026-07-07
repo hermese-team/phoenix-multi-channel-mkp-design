@@ -21,7 +21,7 @@ This plan sizes the team and work breakdown required to deliver the November 1 P
 
 The plan assumes the architecture in the Markdown and diagrams.net source has been presented and approved. Therefore, this plan does not reserve time for major architecture redesign. It reserves time only for implementation-level architecture adoption, ADRs, NFR confirmation, sizing validation, and contract alignment.
 
-The plan assumes the Shopee, Lazada, TikTok, and Amaze/AxtraMall marketplace API specifications needed by the current Gantt scope are provided or accessible. It does not assume that enterprise contracts are finalized. Dependencies on RMS, R10/LDD, Stock Service, WMS/MFC, DHL, Auto POS, business mapping rules, credentials, and production-like test access are highlighted separately.
+The plan assumes the Shopee, Lazada, TikTok, and Amaze/AxtraMall marketplace API specifications needed by the current Gantt scope are provided or accessible. It does not assume that enterprise contracts are finalized. Dependencies on RMS, RMS/LDD, Stock Service, WMS/MFC, DHL, Auto POS, business mapping rules, credentials, and production-like test access are highlighted separately.
 
 The delivery goal is aggressive because the requested scope is deeper than the previously bounded November MVP. The earlier MVP excluded production stock sync, full fulfilment depth, and a richer operator portal. The current Gantt reduces several task efforts to reflect the latest project scope and starts progressive SIT earlier, while also carrying an Amaze/AxtraMall adapter stream. The plan remains feasible only with parallel workstreams and enough QA capacity to test while development is still in progress.
 
@@ -54,7 +54,23 @@ Planning assumptions:
 | Testing and hardening calendar window | 30 weekdays |
 | QA effective productivity during full test phase | 70-75% |
 
-The task breakdowns in the latest Gantt total about 306 MD across build, QA, and release tasks. That direct effort fits inside the 12-developer build model plus dedicated QA capacity, but the calendar remains long because many items are elapsed integration windows rather than full-time effort. Shared components such as the adapter SDK, observability, platform, and Admin Portal stay open while downstream teams consume them and defects are found.
+The task breakdowns in the latest Gantt total about 327 MD (raw sum ~335 MD ±2.4% per-section rounding) across build, QA, and release tasks:
+
+| Section | Area | Breakdown | Total MD |
+|---|---|---|---|
+| 6.1 | Mobilization & Design | m4:10 | 10 |
+| 6.2 | Foundation & DevOps | f1:11, f2:10, f3:9, f4:8, f5:11, f6:8 | 57 |
+| 6.3 | Shared Integration Layer | s1:13, s2:10, s3:8, r3:7 | 38 |
+| 6.4 | Product Sync | p1:6, p2:8, p3a:5, p3b:3, p4:8 | 30 |
+| 6.5 | Price & Promotion Sync | r1:8, r2:5, r4:4 | 17 |
+| 6.6 | Order Sync & Fulfilment | o1a:6, o1b:4, o1c:3, o1d:6, o2:5, o3:13, o4:4 | 41 |
+| 6.7 | Stock Sync | i1:6, i2:7, i3:6, i4:3 | 22 |
+| 6.8 | Channel Adapters | c1:10, c2:10, c3:10, c4:9 | 39 |
+| 6.9 | Admin Portal | a1:7, a2:7, a3:9, a4:8, a5:9, a6:6 | 46 |
+| 6.10 | Testing & Release | t1:9, t2:8, t3:6, t4:8, t5:5, t6:6 | 42 |
+| | | **Grand total** | **~342** |
+
+That direct effort fits inside the 12-developer build model plus dedicated QA capacity, but the calendar remains long because many items are elapsed integration windows rather than full-time effort. Shared components such as the adapter SDK, observability, platform, and Admin Portal stay open while downstream teams consume them and defects are found.
 
 ## 4. Workstream Staffing
 
@@ -62,8 +78,8 @@ The task breakdowns in the latest Gantt total about 306 MD across build, QA, and
 |---|---:|---:|---|
 | Platform, DevOps, CI/CD, environments, observability | 2 | Shared 1 | Kafka, PostgreSQL, Redis, object storage, Kubernetes, GitOps, dashboards, alerting, and deployment controls are prerequisites for all feature work |
 | Canonical contracts, schema registry, shared adapter SDK | 2 | Shared 1 | Product, price, stock, order, and three adapters all depend on stable contracts and shared mechanics |
-| Product Sync | 1 | 1 | RMS ingestion, product delta, mapping, desired-state ledger, outbound command generation, and reconciliation can run as an independent domain stream |
-| Price and Promotion Sync | 1 | 1 | R10/LDD ingestion, effective-date rules, Auto/Manual logic, clubpack, guardrails, and reconciliation need specialized domain focus |
+| Product Sync | 1 | 1 | RMS ingestion, channel listing pull, RMS-vs-channel cross-reference, desired-state ledger, diff-based outbound command generation, and reconciliation can run as an independent domain stream |
+| Price and Promotion Sync | 1 | 1 | RMS/LDD ingestion, effective-date rules, Auto/Manual logic, clubpack, guardrails, and reconciliation need specialized domain focus |
 | Order Sync and Fulfilment Routing | 2 | 1 | Order normalization, idempotency, persistence, routing, cancellation handling, and fulfilment hand-off are correctness-sensitive and on the critical path |
 | Stock Sync | 2 | 1 | Stock Service ingestion, stock ledger, ATS calculation, safety-stock baseline, coalescing, outbound stock sync, and reconciliation are high-risk correctness work |
 | Shopee, Lazada, TikTok, Amaze/AxtraMall adapters | 2 | Shared 1.5 | Four channel cells remain in the current Gantt; Shopee/Lazada share DEV-11 and TikTok/Amaze/AxtraMall share DEV-12 with SDK/domain support |
@@ -100,19 +116,21 @@ gantt
 
     section Product Sync
     RMS ingestion and product delta engine                  :p1, 2026-07-07, 2026-08-15
-    Mapping validation desired state ledger                 :p2, 2026-07-14, 2026-08-22
-    Product outbound command generation                     :p3a, 2026-08-04, 2026-08-21
+    RMS vs channel cross ref diff analysis ms ledgers    :p2, 2026-07-14, 2026-08-22
+    Diff based outbound command generation                :p3a, 2026-08-04, 2026-08-21
     Product reconciliation and drill down                   :p3b, 2026-08-22, 2026-09-05
-    Channel listing read back and stale product verification :crit, p4, 2026-08-17, 2026-09-11
+    Channel listing pull RMS cross ref and stale detection :crit, p4, 2026-07-14, 2026-09-11
 
     section Price and Promotion Sync
-    R10 LDD ingestion and effective price engine            :r1, 2026-07-06, 2026-08-14
+    RMS/LDD ingestion and effective price engine            :r1, 2026-07-06, 2026-08-14
     Promotion business rules guardrails and precedence      :crit, r2, 2026-07-13, 2026-07-20
     Price and promo reconciliation                          :r4, 2026-08-17, 2026-09-11
 
     section Order Sync and Fulfilment Routing
-    Order ingestion shared raw archival and Kafka           :crit, o1a, 2026-07-13, 2026-08-07
-    Polling cursor management and leases                    :crit, o1b, 2026-08-08, 2026-08-21
+    Webhook intake archival Kafka dedup                     :crit, o1a, 2026-07-13, 2026-08-07
+    Webhook message classifier and router                   :crit, o1c, 2026-07-20, 2026-08-07
+    Polling cursor management leases backup safety net      :crit, o1b, 2026-08-08, 2026-08-21
+    Detail enrichment orchestrator                          :crit, o1d, 2026-08-03, 2026-09-04
     Canonical normalization idempotency persistence         :crit, o2, 2026-07-20, 2026-08-07
     Fulfilment routing                                      :crit, o3, 2026-08-03, 2026-09-11
     Cancellation status minimum flow                        :o4, 2026-08-17, 2026-08-28
@@ -191,16 +209,16 @@ After 2026-09-18, the staffing shape changes. The project needs fewer feature de
 
 | Date range | Developers needed | QA needed | TL needed | Main reason |
 |---|---:|---:|---:|---|
-| 2026-06-29 to 2026-07-03 | 7 | 1 | 1 | Kickoff, scope lock, approved architecture adoption, DevOps bootstrap, contract discovery, test strategy |
-| 2026-07-06 to 2026-07-10 | 9 | 2 | 1 | Canonical contracts, Kafka/schema setup, PostgreSQL design, adapter SDK skeleton, QA fixture strategy |
-| 2026-07-13 to 2026-07-17 | 11 | 4 | 1 | Product, price, Redis/ATS, Admin Portal UX/API design, capability registry, and enterprise contract validation start in parallel |
-| 2026-07-20 to 2026-08-02 | 12 | 5 | 1 | Full parallel build starts: product, price, order, stock, Shopee, Lazada, Admin Portal, adapter SDK, platform |
-| 2026-08-03 to 2026-08-23 | 12 | 6 | 1 | Peak delivery: TikTok, Amaze/AxtraMall, load harness, Admin Portal, all domains, and adapters proceed in parallel |
-| 2026-08-24 to 2026-09-18 | 12 | 6 | 1 | Peak delivery continues while progressive SIT starts; QA begins integrated defect discovery before feature complete |
-| 2026-09-21 to 2026-10-04 | 9 | 6 | 1 | SIT, Admin Portal regression, load/stress, resilience testing, critical defect fixing; some feature developers can roll off |
-| 2026-10-05 to 2026-10-16 | 8 | 6 | 1 | UAT, operator workflow validation, parallel run, reconciliation, priority defect turnaround |
-| 2026-10-19 to 2026-10-30 | 6 | 4 | 1 | Cutover, rollback rehearsal, Admin Portal permission/retry checks, production readiness, on-call handover, final release fixes |
-| 2026-11-01 to 2026-11-06 | 5 | 4 | 1 | Hypercare, daily reconciliation, incident response, production monitoring, operator support |
+| 2026-06-29 to 2026-07-03 | 5 | 1 | 1 | Kickoff, scope lock, approved architecture adoption, DevOps bootstrap, contract discovery, test strategy |
+| 2026-07-06 to 2026-07-10 | 7 | 2 | 1 | Canonical contracts, Kafka/schema setup, PostgreSQL design, adapter SDK skeleton, QA fixture strategy |
+| 2026-07-13 to 2026-07-17 | 9 | 3 | 1 | Product, price, Redis/ATS, Admin Portal UX/API design, capability registry, and enterprise contract validation start in parallel |
+| 2026-07-20 to 2026-08-02 | 10 | 4 | 1 | Full parallel build starts: product, price, order, stock, Shopee, Lazada, Admin Portal, adapter SDK, platform |
+| 2026-08-03 to 2026-08-23 | 10 | 4 | 1 | Peak delivery: TikTok, Amaze/AxtraMall, load harness, Admin Portal, all domains, and adapters proceed in parallel |
+| 2026-08-24 to 2026-09-18 | 10 | 4 | 1 | Peak delivery continues while progressive SIT starts; QA begins integrated defect discovery before feature complete |
+| 2026-09-21 to 2026-10-04 | 7 | 4 | 1 | SIT, Admin Portal regression, load/stress, resilience testing, critical defect fixing; some feature developers can roll off |
+| 2026-10-05 to 2026-10-16 | 4 | 4 | 1 | UAT, operator workflow validation, parallel run, reconciliation, priority defect turnaround |
+| 2026-10-19 to 2026-10-30 | 4 | 2 | 1 | Cutover, rollback rehearsal, Admin Portal permission/retry checks, production readiness, on-call handover, final release fixes |
+| 2026-11-01 to 2026-11-06 | 4 | 2 | 1 | Hypercare, daily reconciliation, incident response, production monitoring, operator support |
 
 Minimum staffing by milestone:
 
@@ -220,39 +238,41 @@ Minimum staffing by milestone:
 |---|---|---|---|---|---|
 | Kickoff, scope lock, delivery governance | 2026-06-29 to 2026-07-03 | TL | QA-01, Product Owner, Release Manager | QA-01 | Confirms scope, exclusions, gates, cadence, and escalation path |
 | Architecture adoption and NFR confirmation | 2026-06-29 to 2026-07-10 | TL | DEV-01, DEV-02, DEV-03, QA-05 | QA-01 | Converts approved architecture into ADRs, NFR test targets, and implementation rules |
-| External dependency contract discovery | 2026-06-29 to 2026-07-24 | TL | DEV-05, DEV-06, DEV-08, DEV-09 | QA-02 | RMS, R10/LDD, Stock Service, WMS/MFC, DHL, Auto POS contracts and samples |
+| External dependency contract discovery | 2026-06-29 to 2026-07-24 | TL | DEV-05, DEV-06, DEV-08, DEV-09 | QA-02 | RMS, RMS/LDD, Stock Service, WMS/MFC, DHL, Auto POS contracts and samples |
 | Canonical contract definition and fixture design | 2026-06-29 to 2026-07-31 | DEV-03 | TL, DEV-05, DEV-06, DEV-07, DEV-09 | QA-02 | Product, price, stock, order, fulfilment, and adapter result contracts |
 | Kubernetes CI CD GitOps environments | 2026-06-29 to 2026-08-07 | DEV-01 | DEV-02 | QA-05 | Environments, deployment path, rollback, resource controls |
 | Kafka schema registry retry DLQ topics | 2026-07-01 to 2026-08-04 | DEV-02 | DEV-03, DEV-01 | QA-02 | Topics, schema registry, retry, DLQ, partition rules |
-| PostgreSQL schemas, partitions, ledgers | 2026-07-06 to 2026-08-07 | DEV-02 | DEV-03, DEV-07, DEV-09 | QA-02 | Domain schemas, ledgers, idempotency tables, indexes |
-| Redis quota infrastructure and Lua primitives | 2026-07-13 to 2026-08-14 | DEV-09 | DEV-01, DEV-10 | QA-05 | Distributed quotas, token-bucket Lua primitives; ATS logic belongs to i2 |
+| PostgreSQL schemas, partitions, ledgers | 2026-07-06 to 2026-08-07 | DEV-02 | DEV-03, DEV-07, DEV-09 | QA-02 | Domain schemas, ledgers, idempotency tables, encrypted auth token store, indexes |
+| Redis quota infrastructure and Lua primitives | 2026-07-13 to 2026-08-14 | DEV-09 | DEV-01, DEV-10 | QA-05 | Distributed quotas, token-bucket Lua primitives, auth token cache; ATS logic belongs to i2 |
 | Observability platform (metrics, logs, traces, audit pipeline) | 2026-07-15 to 2026-09-16 | DEV-01 | DEV-02, DEV-04, all domain owners | QA-01 | Consumed by a5 (Admin Portal); Admin does not build separate telemetry |
 | Load and stress test harness | 2026-08-03 to 2026-09-04 | QA-05 | DEV-01, DEV-02, DEV-04 | QA-05 | Synthetic load, channel simulators, failure injection |
-| Adapter SDK: auth, retry, circuit breaker, quota, telemetry | 2026-07-06 to 2026-08-14 | DEV-04 | DEV-11, DEV-12, DEV-01 | QA-02 | Shared mechanics for all channel adapters |
+| Adapter SDK: auth, retry, circuit breaker, quota, telemetry | 2026-07-06 to 2026-08-14 | DEV-04 | DEV-11, DEV-12, DEV-01 | QA-02 | OAuth auth code flow, token lifecycle (auto-refresh, rotation), refresh token expiry monitoring, shared mechanics for all channel adapters |
 | Capability registry and feature flags | 2026-07-13 to 2026-08-14 | DEV-04 | DEV-03, DEV-01 | QA-02 | Endpoint capability, quota, batch, kill switch, writer ownership |
 | Channel API contract simulators | 2026-07-20 to 2026-08-28 | QA-02 | DEV-03, DEV-04, DEV-11, DEV-12 | QA-02 | Fake API endpoints; test data payloads belong to m4 |
 | Shared quota-aware scheduler and drain forecast | 2026-07-27 to 2026-09-11 | DEV-06 | DEV-04, DEV-09, DEV-10, DEV-01 | QA-05 | General-purpose scheduler (moved from Price section); all domains depend on it |
-| RMS ingestion and product delta engine | 2026-07-07 to 2026-08-15 | DEV-05 | DEV-03, DEV-02 | QA-03 | Source ingestion, versioning, replay, delta decision |
-| Mapping, validation, desired-state ledger | 2026-07-14 to 2026-08-22 | DEV-05 | DEV-03, DEV-11 | QA-03 | SKU/listing mapping, validation, desired-state records |
-| Product outbound command generation | 2026-08-04 to 2026-08-21 | DEV-05 | DEV-04, DEV-11, DEV-12 | QA-03 | Transform desired-state to commands; coalesce obsolete pending |
+| RMS ingestion and product delta engine | 2026-07-07 to 2026-08-15 | DEV-05 | DEV-03, DEV-02 | QA-03 | Source ingestion, versioning, replay, delta decision; feeds p4 cross-reference |
+| Channel listing pull, RMS cross-reference and match-status ledger | 2026-07-14 to 2026-09-11 | DEV-05 | DEV-11, DEV-12, DEV-03 | QA-03 | Pull channel listings once adapters ready; cross-ref against RMS; initial match + ongoing push-driven drift detection |
+| RMS-vs-channel diff analysis, desired-state ledger | 2026-07-14 to 2026-08-22 | DEV-05 | DEV-03, DEV-11 | QA-03 | Compare RMS vs channel listings; determine matched/missing/drifted; write desired-state with action intent |
+| Diff-based outbound command generation | 2026-08-04 to 2026-08-21 | DEV-05 | DEV-04, DEV-11, DEV-12 | QA-03 | From diff action intent, generate create/update/deactivate commands; coalesce obsolete pending |
 | Product reconciliation and drill-down | 2026-08-22 to 2026-09-05 | DEV-05 | DEV-11, DEV-12 | QA-03 | Desired-vs-sent-vs-acknowledged; read-back; operator drill-down |
-| Channel listing read-back and stale-product verification | 2026-08-17 to 2026-09-11 | DEV-05 | DEV-11, DEV-12, DEV-03 | QA-03 | Ingest channel listings, cross-reference against RMS master, flag stale/drifted products, feed verified state to Admin Portal for auto/manual field config |
-| R10 LDD ingestion and effective price engine | 2026-07-06 to 2026-08-14 | DEV-06 | DEV-03, DEV-02 | QA-03 | Effective-dated price and promotion calculation |
+| RMS/LDD ingestion and effective price engine | 2026-07-06 to 2026-08-14 | DEV-06 | DEV-03, DEV-02 | QA-03 | Effective-dated price and promotion calculation |
 | Promotion business rules, guardrails, and precedence | 2026-07-13 to 2026-07-20 | DEV-06 | TL, Product Owner | QA-03 | Business-rule fixtures; overrides, clubpack, guardrails |
 | Price and promo reconciliation | 2026-08-17 to 2026-09-11 | DEV-06 | DEV-05, DEV-04 | QA-03 | Desired/sent/acknowledged state and operations evidence |
-| Order ingestion: shared raw archival and Kafka | 2026-07-13 to 2026-08-07 | DEV-07 | DEV-04 | QA-04 | Shared inbound infra: raw archival, Kafka quorum, worker pool isolation |
-| Polling cursor management and leases | 2026-08-08 to 2026-08-21 | DEV-07 | DEV-11, DEV-12 | QA-04 | Reusable polling framework: distributed leases, overlap-safe cursors |
+| Webhook intake: raw archival, dedup, Kafka quorum | 2026-07-13 to 2026-08-07 | DEV-07 | DEV-04 | QA-04 | Shared inbound infra for all push types; Redis fast-path dedup; Kafka quorum with 202 response |
+| Webhook message classifier and router | 2026-07-20 to 2026-08-07 | DEV-07 | DEV-04 (message type contracts), DEV-11, DEV-12 | QA-04 | Shared generic router: classify push type and route to correct domain Kafka topic |
+| Polling cursor management and leases; backup safety-net polling | 2026-08-08 to 2026-08-21 | DEV-07 | DEV-11, DEV-12 | QA-04 | Reusable polling framework; backup safety-net mode to recover missed push notifications |
+| Detail enrichment orchestrator | 2026-08-03 to 2026-09-04 | DEV-07 | DEV-04 (SDK), DEV-06 (r3), DEV-11, DEV-12 | QA-04 | Coalesce light notifications, rate-limited bulk detail fetch, partial batch failure handling |
 | Canonical normalization, idempotency, persistence | 2026-07-20 to 2026-08-07 | DEV-07 | DEV-03, DEV-02 | QA-04 | Canonical order model, duplicate suppression, partition-aware writes |
-| Fulfilment routing | 2026-08-03 to 2026-09-11 | DEV-08 | DEV-07, TL | QA-04 | Idempotent hand-off, routing, retry, rejection handling |
+| Fulfilment routing | 2026-08-03 to 2026-09-11 | DEV-08 | DEV-07, TL | QA-04 | Warehouse assignment, split fulfilment, Redis priority queues, weighted scheduling, SLA preemption, MFC/legacy dispatch, rate limiting |
 | Cancellation status minimum flow | 2026-08-17 to 2026-08-28 | DEV-08 | DEV-07, DEV-11, DEV-12 | QA-04 | Minimum cancellation/status behavior for go-live |
 | Stock Service stock ingestion and stock ledger | 2026-07-13 to 2026-08-21 | DEV-09 | DEV-03, DEV-02 | QA-03 | Ordered stock movements, snapshot support, durable ledger |
 | ATS calculation, reserves, and safety-stock | 2026-07-27 to 2026-09-04 | DEV-09 | DEV-10, TL | QA-05 | Atomic stock calculation, reserves, idempotency, replay, recovery |
 | Stock sync orchestration and coalescing | 2026-08-10 to 2026-09-11 | DEV-10 | DEV-09, DEV-04 | QA-03 | Convert ATS changes into coalesced channel stock commands |
 | Stock reconciliation | 2026-08-25 to 2026-09-11 | DEV-10 | DEV-09, DEV-11, DEV-12 | QA-03 | Desired-vs-channel drift and repair path |
-| Shopee E2E adapter | 2026-07-27 to 2026-09-18 | DEV-11 | DEV-04, DEV-07, DEV-10 | QA-04 | Inbound order plus product, price, promo, stock outbound |
-| Lazada E2E adapter | 2026-07-27 to 2026-09-18 | DEV-11 | DEV-04, DEV-07, DEV-10 | QA-04 | Shares owner with Shopee but must retain separate channel fixtures |
-| TikTok E2E adapter | 2026-08-03 to 2026-09-18 | DEV-12 | DEV-04, DEV-07, DEV-10 | QA-04 | Starts after SDK skeleton stabilizes |
-| Amaze/AxtraMall E2E adapter | 2026-08-10 to 2026-09-18 | DEV-12 | DEV-04, DEV-07 | QA-04 | Reassigned from DEV-07 to DEV-12 to avoid double-booking |
+| Shopee E2E adapter | 2026-07-27 to 2026-09-18 | DEV-11 | DEV-04, DEV-07 (o1c/o1d), DEV-10 | QA-04 | Inbound push types to o1c, product/price/promo/stock outbound |
+| Lazada E2E adapter | 2026-07-27 to 2026-09-18 | DEV-11 | DEV-04, DEV-07 (o1c/o1d), DEV-10 | QA-04 | Shares owner with Shopee but separate channel fixtures and push type mappings |
+| TikTok E2E adapter | 2026-08-03 to 2026-09-18 | DEV-12 | DEV-04, DEV-07 (o1c/o1d), DEV-10 | QA-04 | Starts after SDK skeleton stabilizes; push type mapping to o1c |
+| Amaze/AxtraMall E2E adapter | 2026-08-10 to 2026-09-18 | DEV-12 | DEV-04, DEV-07 (o1c/o1d) | QA-04 | Reassigned from DEV-07 to DEV-12; push type mapping to o1c |
 | Admin UX flows and permissions | 2026-07-13 to 2026-08-07 | DEV-04 | TL, DEV-05, DEV-08, QA-06 | QA-06 | Shared Admin Portal/BFF design; operator roles, navigation, permission model, audit expectations |
 | Order monitoring portal | 2026-07-27 to 2026-09-04 | DEV-07 | DEV-04, DEV-08 | QA-06 | Order-domain screen/API support for lifecycle, fulfilment hand-off, exceptions, and evidence |
 | Manual SKU warehouse mapping upload | 2026-07-27 to 2026-09-11 | DEV-08 | DEV-04, DEV-09 | QA-06 | Fulfilment-owned mapping upload, validation, preview, approval, audit, versioning, and WMS routing lookup |
@@ -260,7 +280,7 @@ Minimum staffing by milestone:
 | Sync telemetry, retry controls, and governance | 2026-08-10 to 2026-09-18 | DEV-04 | DEV-05, DEV-06, DEV-10, DEV-01 | QA-06 | Consumes f5 observability pipeline; retry preview, permission checks, immutable audit |
 | Admin Portal UX polish, accessibility, and UAT hardening | 2026-09-01 to 2026-09-18 | DEV-04 | DEV-05, DEV-08, QA-06 | QA-06 | Operator workflow polish, empty/error/loading states, accessibility, UAT evidence |
 | SIT integrated functional and regression | 2026-08-24 to 2026-10-02 | QA-01 | DEV-03, DEV-04, DEV-07, DEV-09, DEV-11, DEV-12 | QA-01 | QA owns progressive SIT execution; selected devs stay for defect turnaround |
-| Load and stress testing | 2026-09-21 to 2026-10-09 | QA-05 | DEV-01, DEV-02, DEV-04 | QA-05 | 250 orders/sec, 500 orders/sec, stock and price bursts |
+| Load and stress testing | 2026-09-21 to 2026-10-09 | QA-05 | DEV-01, DEV-02, DEV-04 | QA-05 | 250 orders/sec aggregate, 500 orders/sec burst, stock and price bursts |
 | Resilience failover replay DLQ testing | 2026-09-28 to 2026-10-16 | QA-05 | DEV-01, DEV-02, DEV-07, DEV-09 | QA-05 | Failure, replay, duplicate suppression, no-loss testing |
 | UAT and business sign-off | 2026-10-05 to 2026-10-30 | QA-04 | TL, DEV-04, DEV-05, DEV-06, DEV-07, DEV-09, DEV-11 | QA-04, QA-06 | Business validation, operator workflow validation, and evidence capture |
 | Parallel run and reconciliation | 2026-10-05 to 2026-10-30 | QA-03 | DEV-05, DEV-06, DEV-09, DEV-10 | QA-03 | Compares Phoenix outputs with legacy/shadow results |
@@ -286,7 +306,7 @@ Minimum staffing by milestone:
 |---|---|---|---|
 | Kickoff, scope lock, delivery governance | 5 business days | TL/PM activity. Confirm scope, excluded features, decision owners, escalation path, sprint cadence, release gates, fallback rules. Cannot be skipped because stock sync and fulfilment routing materially increase scope risk. | Sponsor, Product Owner, Tech Lead, QA Lead, enterprise owners |
 | Architecture adoption and NFR confirmation | 2026-06-29 to 2026-07-10 | TL activity. Translate approved architecture into implementation ADRs, service boundaries, topic/schema conventions, sizing assumptions, NFR test targets, operational responsibilities, and workstream-ready acceptance criteria. | Approved architecture docs, draw.io source, Tech Lead, DevOps, senior devs |
-| External dependency contract discovery | 2026-06-29 to 2026-07-24 | Enterprise contracts require confirming owners, quotas, payload samples, replay behavior, maintenance windows, error codes, and test endpoints. On the critical path for RMS, R10/LDD, Stock Service, and WMS/MFC. | RMS, R10/LDD, Stock Service, WMS/MFC, DHL, Auto POS owners |
+| External dependency contract discovery | 2026-06-29 to 2026-07-24 | Enterprise contracts require confirming owners, quotas, payload samples, replay behavior, maintenance windows, error codes, and test endpoints. On the critical path for RMS, RMS/LDD, Stock Service, and WMS/MFC. | RMS, RMS/LDD, Stock Service, WMS/MFC, DHL, Auto POS owners |
 | Canonical contract definition and fixture design | 2026-06-29 to 2026-07-31 | Stabilize product, price, stock, order, fulfilment, and adapter result contracts. Must complete before parallel build teams diverge. | Tech Lead, domain devs, QA automation |
 
 Breakdown:
@@ -301,10 +321,10 @@ Breakdown:
 |---|---|---|---|
 | Kubernetes, CI/CD, GitOps, environments | 2026-06-29 to 2026-08-07 | Service templates, namespace/env setup, secrets management, container build, deployment manifests, progressive delivery, rollback, resource limits, topology spread, environment promotion. Supports many parallel services, not one app. | Platform team, security, infrastructure approval |
 | Kafka, schema registry, retry/DLQ topics | 2026-07-01 to 2026-08-04 | Broker/topic configuration, schema registry, naming, partition strategy, retry/DLQ, producer/consumer conventions, dashboards. Correct partitioning critical for orders and stock. | Platform foundation, canonical contracts |
-| PostgreSQL schemas, partitions, ledgers | 2026-07-06 to 2026-08-07 | Domain schemas, order partition alignment, stock/sync ledgers, idempotency/audit tables, indexes, migrations, archive/retention, connection budgets, read/query constraints for ops screens. | Data model design, canonical contracts |
-| Redis quota infrastructure and Lua primitives | 2026-07-13 to 2026-08-14 | Redis for distributed rate limiting. Produces token-bucket infrastructure and reusable Lua building blocks. ATS calculation logic belongs to i2, not this task. | Stock architecture, platform environment |
+| PostgreSQL schemas, partitions, ledgers | 2026-07-06 to 2026-08-07 | Domain schemas, order partition alignment, stock/sync ledgers, idempotency/audit tables, encrypted auth token store, indexes, migrations, archive/retention, connection budgets, read/query constraints for ops screens. | Data model design, canonical contracts |
+| Redis quota infrastructure and Lua primitives | 2026-07-13 to 2026-08-14 | Redis for distributed rate limiting and auth token caching. Produces token-bucket infrastructure, reusable Lua building blocks, and TTL-based access token cache. ATS calculation logic belongs to i2, not this task. | Stock architecture, platform environment |
 | Observability platform (metrics, logs, traces, audit pipeline) | 2026-07-15 to 2026-09-16 | Logs, metrics, traces, queue age, platform wait, source delay, retry/DLQ, order acceptance, stock freshness, price/promo drain time, audit trail, channel health. **Boundary:** produces the data pipeline consumed by a5 (Admin telemetry views). Admin Portal does NOT build its own telemetry — it consumes this. | All domain services and adapters |
-| Load/stress test harness | 2026-08-03 to 2026-09-04 | Synthetic order/price/stock generators, channel API simulators, quota simulation, failure injection, 250/500 ops/sec scenarios. | Contracts, adapters, platform environments |
+| Load/stress test harness | 2026-08-03 to 2026-09-04 | Synthetic order/price/stock generators, channel API simulators (with per-channel rate-limit simulation), quota simulation, failure injection, 250/500 aggregate ops/sec scenarios across multiple channels. | Contracts, adapters, platform environments |
 
 Breakdowns:
 
@@ -324,15 +344,17 @@ Breakdowns:
 
 **f3 — PostgreSQL schemas, partitions, ledgers**
 - Domain schemas: order partitions, stock ledger, sync ledger, idempotency tables (3 md)
+- Auth token store: encrypted `channel_credentials` table with access_token, refresh_token, expiry, per-channel account reference (1 md)
 - Audit tables, indexes, archive/retention strategy (2 md)
 - Migration scripts, connection budgets, read/query constraints for ops screens (3 md)
-- **Total: 8 md**
+- **Total: 9 md**
 
-**f4 — Redis quota infrastructure and Lua primitives** (produces primitives consumed by i2, r3)
+**f4 — Redis quota infrastructure and Lua primitives** (produces primitives consumed by i2, r3; also provides auth token cache)
 - Redis key design for distributed token buckets (2 md)
 - Lua scripts for atomic quota consumption/refill; failover behavior testing (3 md)
+- Auth token cache: Redis TTL-based access token storage with automatic expiry for low-latency adapter authentication (1 md)
 - Test fixtures for rate-limit, token-bucket edge cases, 429 backpressure (2 md)
-- **Total: 7 md**
+- **Total: 8 md**
 
 **f5 — Observability platform**
 - Log/metric/trace pipeline: OpenTelemetry collectors, exporters (3 md)
@@ -344,14 +366,14 @@ Breakdowns:
 **f6 — Load/stress test harness**
 - Synthetic order/price/stock event generators for load scenarios (3 md)
 - Configurable channel API simulators for quota/failure injection (3 md)
-- Measurement scripts: repeatable 250/500 ops/sec scenario definitions (2 md)
+- Measurement scripts: repeatable 250/500 aggregate ops/sec scenario definitions across multiple channel simulators (2 md)
 - **Total: 8 md**
 
 ### 6.3 Shared Integration Layer
 
 | Task | Current planned duration | Why it takes this long | Main dependencies |
 |---|---|---|---|
-| Adapter SDK: auth, retry, circuit breaker, quota, telemetry | 2026-07-06 to 2026-08-14 | Standardizes external call mechanics across all channels. Auth hooks, request signing extension points, idempotency/request keys, retry taxonomy, 429 handling, distributed quotas, circuit breakers, metrics, traces, result publishing. | Channel specs, Redis quota foundation, Kafka |
+| Adapter SDK: auth, retry, circuit breaker, quota, telemetry | 2026-07-06 to 2026-08-14 | Standardizes external call mechanics across all channels. OAuth authorization code flow (callback, state validation, auth_code exchange), request signing extension points, token lifecycle management (auto-refresh on 401, refresh token rotation), refresh token expiry monitoring, idempotency/request keys, retry taxonomy, 429 handling, distributed quotas, circuit breakers, metrics, traces, result publishing. | Channel specs, Redis quota foundation, Kafka |
 | Capability registry and feature flags | 2026-07-13 to 2026-08-14 | Endpoint capabilities, quotas, batch sizes, read-back support, certification evidence, writer ownership, kill switches, staged rollout by channel/account/domain/SKU cohort. | Adapter SDK, operations requirements |
 | Channel API contract simulators | 2026-07-20 to 2026-08-28 | Fake API endpoints for QA/dev testing before sandboxes are stable. Success, retryable, permanent failure, rate-limit, malformed, duplicate, out-of-order cases. Does not create test data payloads — that is m4's responsibility. | Channel OpenAPI specs, enterprise samples |
 | Shared quota-aware scheduler and drain forecast | 2026-07-27 to 2026-09-11 | **MOVED from Price section** — all domains need this, not just price. Per-channel/account/endpoint quota budgets (80/20), dynamic batch sizing, retry budget, campaign drain estimation, 429/retry storm safety. Consumes f4 token buckets and s2 capabilities. | Redis quota foundation (f4), capability registry (s2) |
@@ -359,11 +381,14 @@ Breakdowns:
 Breakdowns:
 
 **s1 — Adapter SDK: auth, retry, circuit breaker, quota, telemetry**
-- Auth hooks, request signing extension points for all channel adapters (3 md)
+- OAuth authorization code flow: callback endpoint, state/CSRF validation, auth_code extraction, access token exchange (2 md)
+- Request signing extension points: HMAC, OAuth bearer, custom schemes per channel (1 md)
 - Idempotency/request keys, retry taxonomy (immediate/deferred/permanent), 429 handling (3 md)
+- Token lifecycle management: AuthProvider with automatic access token refresh on 401, concurrent refresh guard, refresh token rotation (2 md)
+- Refresh token expiry monitoring: configurable TTL threshold, Admin Portal integration for operator re-auth notification (1 md)
 - Distributed quota integration with f4; circuit breaker per endpoint (3 md)
 - Metrics, traces, and result publishing via Kafka (1 md)
-- **Total: 10 md**
+- **Total: 13 md**
 
 **s2 — Capability registry and feature flags**
 - Endpoint capability model: per-channel, per-operation field support matrix (3 md)
@@ -388,28 +413,28 @@ Breakdowns:
 
 | Task | Current planned duration | Why it takes this long | Main dependencies |
 |---|---|---|---|
-| RMS ingestion and product delta engine | 2026-07-07 to 2026-08-15 | Ingest RMS snapshots/changes, store payload references, version comparison, deterministic insert/update/deactivate/unchanged decisions, stale source handling, replay, source delay measurement. | RMS contract, sample payloads |
-| Mapping, validation, desired-state ledger | 2026-07-14 to 2026-08-22 | Resolve SKU/PLU to channel listing IDs, validate listing eligibility, handle inactive/unmapped items, write desired state with version/payload hash/priority/reconciliation keys. | Business mapping rules, channel capability matrix |
-| Product outbound command generation | 2026-08-04 to 2026-08-21 | Transform desired-state to channel-neutral commands; coalesce obsolete pending commands; integrate with s1 SDK for dispatch; classify results. | s1 SDK, channel adapters, product capability |
+| RMS ingestion and product delta engine | 2026-07-07 to 2026-08-15 | Ingest RMS snapshots/changes (product master + inventory with SKU and price), store payload references, version comparison, deterministic insert/update/deactivate/unchanged decisions, stale source handling, replay, source delay measurement. | RMS contract, sample payloads |
+| Channel listing pull, RMS cross-reference and match-status ledger | 2026-07-14 to 2026-09-11 | **Pull** existing product listings from seller platforms (Shopee, Lazada, TikTok) via channel read-back APIs once adapters are available (c1-c4). Cross-reference each listing against RMS product master (p1). Report match status: matched, missing in RMS, missing on channel, field-drifted, deactivated-on-channel. Persist verified listing state with drift metadata. After initial sync, feed incremental change notifications from platform push (o1c) into the same cross-reference pipeline for ongoing drift detection. | p1 RMS master, c1/c2 adapter read-back capability |
+| RMS-vs-channel diff analysis, desired-state ledger | 2026-07-14 to 2026-08-22 | Compare RMS product master against pulled channel listings (p4 output). For each product-channel pair: if listing exists on channel, update desired-state to match RMS; if missing on channel, mark as `NEEDS_CREATE`; if RMS-deactivated but listing still active, mark as `NEEDS_DEACTIVATE`. Write desired-state with version/payload hash/priority/reconciliation keys. | p1 RMS master, p4 channel listing state |
+| Diff-based outbound command generation | 2026-08-04 to 2026-08-21 | From RMS-vs-channel diff in desired-state ledger, generate channel-neutral create/update/deactivate commands. Coalesce obsolete pending commands; integrate with s1 SDK for dispatch; classify results. | Desired-state ledger (p2), s1 SDK, channel capability matrix |
 | Product reconciliation and drill-down | 2026-08-22 to 2026-09-05 | Compare desired-vs-sent-vs-acknowledged state per SKU/channel; read-back integration; operator drill-down for operations. | p3a output, channel read-back capability |
-| Channel listing read-back and stale-product verification | 2026-08-17 to 2026-09-11 | Ingest listing data from seller centers via channel read-back APIs, cross-reference against RMS product master (p1), flag orphaned/deactivated/drifted listings before publishing for sale, persist verified listing state with drift metadata, feed into Admin Portal (a4) for operator configuration of auto/manual fields. | p1 RMS master, p2 mapping, c1/c2 adapter listing read-back |
 
 Breakdowns:
 
 **p1 — RMS ingestion and product delta engine**
 - RMS snapshot/change ingestion: payload references, version comparison, replay (3 md)
 - Deterministic insert/update/deactivate/unchanged decisions; stale source handling (2 md)
-- Source delay measurement; integration with p2 desired-state ledger (1 md)
+- Source delay measurement; integration with p4 channel listing cross-reference (1 md)
 - **Total: 6 md**
 
-**p2 — Mapping, validation, desired-state ledger**
-- SKU/PLU to channel listing ID resolution engine; eligibility validation (3 md)
-- Handling inactive, unmapped, ambiguous items with stable reason codes (2 md)
-- Desired-state persistence: version, payload hash, priority, reconciliation keys (3 md)
+**p2 — RMS-vs-channel diff analysis, desired-state ledger**
+- Cross-reference RMS product master against pulled channel listings (p4 output); determine match status: matched, missing-on-channel, missing-in-RMS, field-drifted (3 md)
+- Handle inactive/unmapped RMS items against channel state; stable reason codes (2 md)
+- Desired-state persistence: version, payload hash, priority, reconciliation keys, action intent (CREATE/UPDATE/DEACTIVATE) (3 md)
 - **Total: 8 md**
 
-**p3a — Product outbound command generation**
-- Transform desired-state to channel-neutral commands; coalesce obsolete pending (2 md)
+**p3a — Diff-based outbound command generation**
+- From RMS-vs-channel diff (desired-state action intent), generate channel-neutral create/update/deactivate commands; coalesce obsolete pending (2 md)
 - Integrate with s1 SDK for outbound dispatch; result classification (3 md)
 - **Total: 5 md**
 
@@ -418,17 +443,18 @@ Breakdowns:
 - Read-back integration where available; operator drill-down views (1 md)
 - **Total: 3 md**
 
-**p4 — Channel listing read-back and stale-product verification**
-- Ingest listing data from seller centers via channel read-back APIs; map to RMS product master (p1) (3 md)
-- Stale-product detection engine: flag orphaned, deactivated, or drifted listings before publishing for sale (3 md)
-- Verified listing state persistence with drift metadata; integration with Admin Portal (a4) for auto/manual field configuration (2 md)
+**p4 — Channel listing pull, RMS cross-reference, and stale-product detection**
+- Initial channel listing pull: ingest existing product listings from Shopee, Lazada, TikTok, Amaze via channel read-back APIs; store in `channel_listings` table (3 md)
+- RMS cross-reference engine: compare each channel listing against p1 product master; report matched, missing-in-RMS, missing-on-channel, field-drifted statuses (2 md)
+- Ongoing push-driven drift detection: subscribe to platform push notifications (via o1c) for product.updated, price.changed events; cross-reference against RMS and desired-state to detect and flag drifts without full re-pull (2 md)
+- Verified listing state persistence with drift metadata; integration with Admin Portal (a4) for auto/manual field configuration (1 md)
 - **Total: 8 md**
 
 ### 6.5 Price and Promotion Sync
 
 | Task | Current planned duration | Why it takes this long | Main dependencies |
 |---|---|---|---|
-| R10 LDD ingestion and effective price engine | 2026-07-06 to 2026-08-14 | Regular price, promotion price, start/end time, timezone, source version, product/store scope, replay, deterministic calculation at business timestamp. Effective-dated behavior creates many edge cases. | R10/LDD contract and examples |
+| RMS/LDD ingestion and effective price engine | 2026-07-06 to 2026-08-14 | Regular price, promotion price, start/end time, timezone, source version, product/store scope, replay, deterministic calculation at business timestamp. Effective-dated behavior creates many edge cases. | RMS/LDD contract and examples |
 | Promotion business rules, guardrails, and precedence | 2026-07-13 to 2026-07-20 | Business sign-off for precedence, manual ownership, overrides, clubpack multiplication, rounding, activation, expiry, quarantine, guardrails. Narrow scope: rule confirmation + fixtures, not full campaign engine. | Business rules, Product Owner, finance/commerce owners |
 | Price and promo reconciliation | 2026-08-17 to 2026-09-11 | Match desired/sent/acknowledged state, classify permanent vs retryable failures, expose operator evidence. Depends on core engine and adapters being functional. | Channel adapters, operations dashboard |
 
@@ -436,8 +462,8 @@ Breakdowns:
 
 Breakdowns:
 
-**r1 — R10 LDD ingestion and effective price engine**
-- R10/LDD ingestion: source versioning, effective dates, timezone handling, replay (3 md)
+**r1 — RMS/LDD ingestion and effective price engine**
+- RMS/LDD ingestion: source versioning, effective dates, timezone handling, replay (3 md)
 - Deterministic effective price calculation at business timestamp; promotion active/expiry (3 md)
 - Product/store scope resolution; integration with desired-state comparison (2 md)
 - **Total: 8 md**
@@ -456,24 +482,39 @@ Breakdowns:
 
 | Task | Current planned duration | Why it takes this long | Main dependencies |
 |---|---|---|---|
-| Order ingestion: shared raw archival and Kafka | 2026-07-13 to 2026-08-07 | **Boundary fix:** handles only shared infrastructure — raw payload archival to object storage, Kafka quorum acknowledge topic, worker pool isolation. Channel-specific webhook signing moved to c1-c4 adapters. | Channel specs, API gateway/WAF, object storage, Kafka |
-| Polling cursor management and leases | 2026-08-08 to 2026-08-21 | Reusable polling cursor framework: distributed leases, overlap-safe cursors, lease expiry, cursor persistence. Consumed by any channel with polling-only or hybrid mechanics. | o1a output, channel polling specs |
+| Webhook intake: raw archival, dedup, Kafka quorum | 2026-07-13 to 2026-08-07 | Shared inbound intake for all push types (order, product, price, stock status). Raw payload archival, Redis fast-path dedup (TTL-based idempotency), Kafka quorum acknowledge returning 202, worker pool isolation. Channel-specific webhook signing belongs to c1-c4 adapters. | Channel specs, API gateway/WAF, object storage, Kafka |
+| Webhook message classifier and router | 2026-07-20 to 2026-08-07 | Shared generic router: inspect incoming push type (order.created, product.updated, price.changed) via topic header or payload inspection, publish to correct domain Kafka topic. Sits between channel-specific webhook verification (c1-c4) and domain processing. | o1a output, channel push specs |
+| Polling cursor management and leases; backup safety-net polling | 2026-08-08 to 2026-08-21 | Reusable polling cursor framework: distributed leases, overlap-safe cursors, lease expiry, cursor persistence. **Enhancement:** backup safety-net polling mode running every 15 min per channel with 30 min time-window overlap scan; queries Redis `safety-net:{channel}:processed` set (TTL 1800s) via SMISMEMBER to skip already-consumed orders. Consumed by any channel with polling-only or hybrid mechanics. | o1a output, channel polling specs, Redis set for processed IDs |
+| Detail enrichment orchestrator | 2026-08-03 to 2026-09-04 | Receive lightweight push notifications (e.g., order.created {id}), coalesce same-type notifications into batches within a time window, invoke rate-limited bulk API calls to fetch enriched details (line items, addresses, payments), publish enriched canonical payloads. Includes partial batch failure handling, retry, and DLQ routing. Heavily uses r3 scheduler for quota-aware dispatching. | o1c, o1b, r3 scheduler, channel API specs |
 | Canonical normalization, idempotency, persistence | 2026-07-20 to 2026-08-07 | Map channel order payloads to canonical model; partition-aware persistence; idempotency keys; duplicate suppression; out-of-order handling. Uses approved canonical model and existing order patterns. | Canonical order contract, f3 PostgreSQL partitions |
-| Fulfilment routing | 2026-08-03 to 2026-09-11 | Route accepted orders to WMS/MFC via idempotent hand-off; retry, rejection reason codes, correlation IDs, timeout handling. Separate Phoenix acceptance time from external fulfilment time. | WMS/MFC fulfilment contract |
+| Fulfilment routing | 2026-08-03 to 2026-09-11 | Warehouse assignment per line (explicit warehouse_code or SKU mapping lookup), split fulfilment for multi-warehouse orders, Redis ZSET priority queues with weighted scheduling (72:8:20), SLA deadline preemption (< 30 min bypasses weights), MFC rate-limited dispatcher (token bucket at 300/hr), legacy MKP dispatcher (DC1/DC2, token bucket at 1000/hr each) with circuit breaker, fulfilment dispatch ledger. | WMS/MFC fulfilment contract, SKU-warehouse mapping (a3), Redis |
 | Cancellation status minimum flow | 2026-08-17 to 2026-08-28 | Handle cancellation before fulfilment acceptance where supported; map minimum external statuses; prevent invalid backward transitions; reconcile stuck hand-off cases. | Channel status rules, WMS/MFC status contract |
 
 Breakdowns:
 
-**o1a — Order ingestion: shared raw archival and Kafka**
-- Raw order payload archival to object storage with payload reference (2 md)
-- Kafka quorum acknowledge topic for accepted orders, separate from domain topics (2 md)
+**o1a — Webhook intake: raw archival, dedup, Kafka quorum**
+- Raw push payload archival to object storage with payload reference (2 md)
+- Redis fast-path dedup: TTL-based idempotency check before archival; reject duplicates with 200 OK (1 md)
+- Kafka quorum acknowledge topic per domain (order, product, price, stock), returning 202 immediately after ISR acknowledgement (2 md)
 - Worker pool isolation pattern (inbound/polling/outbound) shared by all adapters (1 md)
-- **Total: 5 md**
+- **Total: 6 md**
+**o1b — Polling cursor management, leases, and backup safety-net polling**
 
-**o1b — Polling cursor management and leases**
 - Distributed polling lease framework: overlap-safe cursors, lease expiry, persistence (2 md)
 - Reusable polling state machine: incremental, full-sync, catch-up modes (1 md)
+- Backup safety-net polling: every 15 min per channel with 30 min time-window overlap scan; query Redis `safety-net:{channel}:processed` set (TTL 1800s) via SMISMEMBER to skip already-consumed orders; forward missed orders to o1a with re-insertion into Redis set (1 md)
+- **Total: 4 md**
+
+**o1c — Webhook message classifier and router**
+- Message type classifier: inspect incoming push for type indicator (topic header or payload field); map to canonical domain event type (2 md)
+- Topic router: publish classified messages to correct domain Kafka topic (order.ingest.<channel>.v1, product.notification.v1, price.notification.v1) (1 md)
 - **Total: 3 md**
+
+**o1d — Detail enrichment orchestrator**
+- Lightweight notification coalescer: buffer same-type notifications within configurable time window; deduplicate by source ID (2 md)
+- Rate-limited bulk detail fetcher: invoke channel API (e.g., GetOrdersBatch, GetProductsBatch) respecting per-channel quotas via r3; map enriched response to canonical model (3 md)
+- Partial batch failure handling: classify per-item failures, retry individually, route permanent failures to DLQ with governance event (1 md)
+- **Total: 6 md**
 
 **o2 — Canonical normalization, idempotency, persistence**
 - Channel-to-canonical order model mapping (header, line, address, payment, references, timestamps) (2 md)
@@ -481,11 +522,15 @@ Breakdowns:
 - Out-of-order event handling; cancellation state legality (1 md)
 - **Total: 5 md**
 
-**o3 — Fulfilment routing**
-- Route accepted orders to WMS/MFC via idempotent hand-off contract (2 md)
-- Retry behavior, timeout handling, stable rejection reason codes, correlation IDs (3 md)
-- Separate Phoenix acceptance time from external fulfilment time (1 md)
-- **Total: 6 md**
+**o3 — Fulfilment routing and dispatch**
+- Fulfilment router: consume order.received.v1, warehouse assignment per line (explicit warehouse_code or SKU-Warehouse mapping lookup), split fulfilment for multi-warehouse orders, persist routing decision, publish to fulfilment.unit.v1 (3 md)
+- Redis priority queues: ZSET-based instant/express/normal queues per warehouse, weighted scheduling with 72:8:20 ratio, SLA deadline preemption (deadline < 30 min bypasses weights) (3 md)
+- MFC rate-limited dispatcher: token bucket (300/hr), idempotent POST /request_pick, retry classification, in-flight guard (2 md)
+- Legacy MKP dispatcher: circuit breaker integration, initial rate of 1000/hr per warehouse, half-open probe recovery on circuit open (2 md)
+- Fulfilment dispatch ledger: persist attempt history per unit, status tracking, reconciliation evidence (1 md)
+- SLA urgency monitor: deadline tracking, 30-minute pre-emption window, promote urgent units regardless of weight (1 md)
+- Partial failure handling: retryable vs permanent classification, backoff re-enqueue, DLQ routing, operations queue integration (1 md)
+- **Total: 13 md**
 
 **o4 — Cancellation status minimum flow**
 - Cancellation before fulfilment acceptance (where supported); minimum external status mapping (2 md)
@@ -530,40 +575,44 @@ Breakdowns:
 
 | Task | Current planned duration | Why it takes this long | Main dependencies |
 |---|---|---|---|
-| Shopee E2E adapter | 2026-07-27 to 2026-09-18 | Channel-specific auth/signing/webhook verification (not shared infra), inbound orders to o1a Kafka, outbound product/price/promo/stock, quota/batching via s1 SDK, sandbox certification, production config. | Shopee OpenAPI, s1 SDK, o1a, s2 capability registry |
-| Lazada E2E adapter | 2026-07-27 to 2026-09-18 | Same scope as Shopee but channel-specific auth, payload shape, error taxonomy, quotas, certification require parallel track. Shares DEV-11 but separate fixtures. | Lazada OpenAPI, s1 SDK, o1a, s2 capability registry |
-| TikTok E2E adapter | 2026-08-03 to 2026-09-18 | Starts one week later to reuse SDK lessons. Auth, payload transformation, quota behavior, certification. Owner: DEV-12. | TikTok OpenAPI, s1 SDK, o1a, s2 |
-| Amaze/AxtraMall E2E adapter | 2026-08-10 to 2026-09-18 | Owner reassigned to DEV-12 (not DEV-07). Reuses patterns from c1-c3. Auth, payload transformation, endpoint behavior, sandbox validation, production config. | Amaze/AxtraMall API specs, s1 SDK, c3 patterns |
+| Shopee E2E adapter | 2026-07-27 to 2026-09-18 | Channel-specific OAuth flow, push type mapping (event type → canonical push type), webhook verification, inbound payloads to o1c (classifier) then o1a (archival/Kafka), outbound product/price/promo/stock via s1 SDK, sandbox certification, production config. | Shopee OpenAPI, s1 SDK (TokenManager), o1c, o1a, s2 |
+| Lazada E2E adapter | 2026-07-27 to 2026-09-18 | Same scope as Shopee but channel-specific OAuth flow, push type mapping, payload shape, error taxonomy, quotas, certification. Shares DEV-11 but separate fixtures. | Lazada OpenAPI, s1 SDK (TokenManager), o1c, o1a, s2 |
+| TikTok E2E adapter | 2026-08-03 to 2026-09-18 | Starts one week later. OAuth flow, push type mapping, payload transformation, quota behavior, certification. Owner: DEV-12. | TikTok OpenAPI, s1 SDK (TokenManager), o1c, o1a, s2 |
+| Amaze/AxtraMall E2E adapter | 2026-08-10 to 2026-09-18 | Reuses patterns from c1-c3. Auth flow, push type mapping, payload transformation, endpoint behavior, sandbox validation, production config. | Amaze/AxtraMall API specs, s1 SDK (TokenManager), o1c, o1a, c3 patterns |
 
 Breakdowns:
 
 **c1 — Shopee E2E adapter**
-- Shopee auth, signing, channel-specific webhook verification; polling cursor integration with o1b (2 md)
-- Inbound order path: raw order to Kafka via o1a shared infrastructure (2 md)
+- Shopee OAuth flow integration (auth button redirect, callback, auth_code exchange via s1 TokenManager); channel-specific webhook verification; polling cursor integration with o1b (2 md)
+- Channel-specific push type mapping: map Shopee event types (`ORDER_CREATED`, `ITEM_UPATED`, `PRICE_CHANGED`) to canonical push types consumed by o1c; inbound payload forwarding to o1c (1 md)
+- Inbound order path: raw order to o1c (message classifier) then o1a (archival + Kafka) shared infrastructure (2 md)
 - Outbound sync: product, price, stock, status transformation using s1 SDK and s2 capability registry (3 md)
 - Sandbox certification, error mapping, production configuration (2 md)
-- **Total: 9 md**
+- **Total: 10 md**
 
 **c2 — Lazada E2E adapter** (parallel track, separate fixtures)
-- Lazada auth, signing, channel-specific webhook verification; polling cursor integration with o1b (2 md)
-- Inbound order path: raw order to Kafka via o1a (2 md)
+- Lazada OAuth flow integration (auth redirect, callback, auth_code exchange via s1 TokenManager); channel-specific webhook verification; polling cursor integration with o1b (2 md)
+- Channel-specific push type mapping: map Lazada event types to canonical push types consumed by o1c; inbound payload forwarding to o1c (1 md)
+- Inbound order path: raw order to o1c then o1a (2 md)
 - Outbound sync: product, price, stock, status transformation via s1 SDK (3 md)
 - Sandbox certification, error mapping, production configuration (2 md)
-- **Total: 9 md**
+- **Total: 10 md**
 
 **c3 — TikTok E2E adapter** (starts 1 week after c1/c2)
-- TikTok auth, signing, channel-specific webhook/polling mechanics (2 md)
-- Inbound order path: raw order to Kafka (2 md)
+- TikTok OAuth flow integration (auth redirect, callback, auth_code exchange via s1 TokenManager); channel-specific webhook/polling mechanics (2 md)
+- Channel-specific push type mapping: map TikTok event types to canonical push types consumed by o1c; inbound payload forwarding to o1c (1 md)
+- Inbound order path: raw order to o1c then o1a (2 md)
 - Outbound sync: product, price, stock, status transformation via s1 SDK (3 md)
 - Sandbox certification, error mapping, production configuration (2 md)
-- **Total: 9 md**
+- **Total: 10 md**
 
 **c4 — Amaze/AxtraMall E2E adapter** (starts after c3, owner DEV-12)
-- Amaze/AxtraMall auth, signing, polling mechanics (2 md)
-- Inbound order path: raw order to Kafka (2 md)
+- Amaze/AxtraMall auth flow integration (auth redirect, callback, auth_code exchange via s1 TokenManager); polling mechanics (2 md)
+- Channel-specific push type mapping: map Amaze/AxtraMall event types to canonical push types consumed by o1c; inbound payload forwarding to o1c (1 md)
+- Inbound order path: raw order to o1c then o1a (2 md)
 - Outbound sync: product, price, stock, status transformation via s1 SDK (2 md)
 - Sandbox certification, error mapping, production configuration (2 md)
-- **Total: 8 md**
+- **Total: 9 md**
 
 ### 6.9 Admin Portal
 
@@ -574,8 +623,8 @@ Phase 1 includes manual SKU and warehouse mapping upload for WMS routing. Phase 
 | Admin UX flows and permissions | 2026-07-13 to 2026-08-07 | Role definition, screen flow design, navigation, permission boundaries, audit requirements, retry authorization rules. Must finish before screens built to avoid rework. | Product Owner, operations users, security, TL |
 | Order monitoring portal | 2026-07-27 to 2026-09-04 | Searchable order views, filters by channel/account/order/SKU/status, lifecycle timeline, fulfilment hand-off, error/exceptions, raw evidence links, backend read APIs not overloading transactional tables. | o1a/o1b/o2/o3 services, PostgreSQL read models |
 | Manual SKU warehouse mapping upload | 2026-07-27 to 2026-09-11 | Upload template, CSV validation, preview, duplicate detection, SKU/warehouse reference checks, approval/activation, versioning, audit trail, rollback, routing-service lookup integration. | Business mapping rules, WMS routing rules, SKU/warehouse master |
-| Product sync and listing field manual auto configuration | 2026-08-03 to 2026-09-11 | UI/APIs for manual/auto product master sync and listing auto/manual field configuration (consumes p4 verified listing state). Scope per channel/account/SKU cohort, effective dating, validation, audit, rollback, conflict prevention with writer ownership. | p2/p3a services, p4 verified listing state, s2 capability registry, permissions |
-| Sync telemetry, retry controls, and governance | 2026-08-10 to 2026-09-18 | **Consumes f5 platform observability data** — does NOT build separate telemetry. Telemetry views for all sync domains; queue age; retry/DLQ state; failure classification; retry preview; permission checks; rate-limit protection; immutable audit. | f5 observability pipeline, sync ledger, retry/DLQ topics, s2 permissions |
+| Product sync and listing field manual auto configuration | 2026-08-03 to 2026-09-11 | UI/APIs for manual/auto product master sync and listing auto/manual field configuration (consumes p4 verified listing state: matched/missing/drifted report). Scope per channel/account/SKU cohort, effective dating, validation, audit, rollback, conflict prevention with writer ownership. | p2/p3a services, p4 verified listing state, s2 capability registry, permissions |
+| Sync telemetry, retry controls, and governance | 2026-08-10 to 2026-09-18 | **Consumes f5 platform observability data** — does NOT build separate telemetry. Telemetry views for all sync domains; queue age; retry/DLQ state; failure classification; retry preview; permission checks; rate-limit protection; immutable audit; refresh token expiry dashboard with per-channel health, days-to-expiry, and operator re-auth notification. | f5 observability pipeline, sync ledger, retry/DLQ topics, s2 permissions |
 | Admin Portal UX polish, accessibility, and UAT hardening | 2026-09-01 to 2026-09-18 | Operator feedback, workflow polish, empty/error/loading states, permission defects, import edge cases, retry confirmation wording, accessibility basics, UAT evidence. | UAT users, QA-06, stable backend APIs |
 
 Breakdowns:
@@ -610,7 +659,8 @@ Breakdowns:
 - Sync telemetry views: product/price/stock/order queue age, retry/DLQ state, failure classification (3 md)
 - Manual retry preview: scope, idempotency impact, rate-limit protection, permission check (3 md)
 - Immutable audit for all retry actions; scoped retry execution controls (2 md)
-- **Total: 8 md**
+- Refresh token expiry dashboard: per-channel token health, days-to-expiry, operator re-auth notification trigger with configurable threshold (default 14 days) (1 md)
+- **Total: 9 md**
 
 **a6 — Admin Portal UX polish, accessibility, and UAT hardening**
 - Operator workflow polish based on UAT feedback; empty/error/loading states (3 md)
@@ -623,7 +673,7 @@ Breakdowns:
 | Task | Current planned duration | Why it takes this long | Main dependencies |
 |---|---|---|---|
 | SIT integrated functional and regression | 2026-08-24 to 2026-10-02 | Progressive SIT starts before dev complete so completed flows integrate early. Validates all domains, fulfilment hand-off, Admin Portal, retries, DLQ, replay, reconciliation, writer ownership, channel isolation. Two phases: phase 1 for completed slices, phase 2 for full regression. | Completed domain slices |
-| Load and stress testing | 2026-09-21 to 2026-10-09 | 250 orders/sec baseline (2 min), 500 orders/sec headroom, price/promo burst, stock burst, retry storm, rate-limit behavior, backlog drain scenarios. Includes tuning and retesting. | Load harness (f6), production-like environment |
+| Load and stress testing | 2026-09-21 to 2026-10-09 | 250 orders/sec aggregate baseline across all channels (2 min), 500 orders/sec headroom, price/promo burst, stock burst, retry storm, per-channel rate-limit behavior, backlog drain scenarios. Includes tuning and retesting. | Load harness (f6), production-like environment |
 | Resilience failover replay DLQ testing | 2026-09-28 to 2026-10-16 | Pod, broker, consumer rebalance, Redis failover, PostgreSQL pressure, external API outage, replay correctness, duplicate suppression, no-loss acceptance. | Platform and domain services stable |
 | UAT and business sign-off | 2026-10-05 to 2026-10-30 | Business users validate mappings, campaign rules, price behavior, order handling, stock outcomes, Admin Portal workflows, exception handling. Overlaps late SIT. | Business users, test data, UAT environment |
 | Parallel run and reconciliation | 2026-10-05 to 2026-10-30 | Compare Phoenix against legacy/shadow outputs for product, price, stock, order, fulfilment. Required before writer ownership transfer. | Legacy data access, reconciliation reports |
@@ -637,8 +687,8 @@ Breakdowns:
 - **Total: 9 md**
 
 **t2 — Load and stress testing**
-- 250 orders/sec baseline: execute, measure, tune (3 md)
-- 500 orders/sec headroom: burst test with price/promo and stock bursts (3 md)
+- 250 orders/sec aggregate baseline across all channels: execute, measure, tune (3 md)
+- 500 orders/sec aggregate headroom: burst test with price/promo and stock bursts (3 md)
 - Retry storm and backlog drain scenarios (2 md)
 - **Total: 8 md**
 
@@ -686,7 +736,7 @@ Shopee, Lazada, TikTok, and Amaze/AxtraMall marketplace API specifications are a
 | Dependency | Required by | Required detail | Target confirmation date | Impact if late |
 |---|---|---|---|---|
 | RMS product contract | Product Sync | Snapshot/change format, versioning, checksum, replay behavior, source delay behavior, payload examples | 2026-07-10 | Product sync cannot complete E2E; use simulator only |
-| R10/LDD price/promotion contract | Price and Promotion Sync | Effective dates, timezone, promotion identity, clubpack, override, Auto/Manual, payload examples | 2026-07-10 | Price rules remain speculative; UAT risk increases |
+| RMS/LDD price/promotion contract | Price and Promotion Sync | Effective dates, timezone, promotion identity, clubpack, override, Auto/Manual, payload examples | 2026-07-10 | Price rules remain speculative; UAT risk increases |
 | Stock Service stock contract | Stock Sync | Movement identity, ordering, snapshot/replay behavior, reconciliation feed, stale event behavior | 2026-07-17 | Stock sync becomes highest go-live risk |
 | WMS/MFC fulfilment contract | Order Sync and Fulfilment Routing | Idempotent hand-off, routing input, accepted/retry/rejected response, quota, stable reason codes, cancellation handling | 2026-07-17 | Order go-live blocked or fulfilment routing reduced |
 | DHL/logistics status contract | Minimum status flow if included | Shipment/status identity, webhook/poll behavior, retry and timeout behavior | 2026-07-24 | Status sync may be reduced to fulfilment acknowledgement only |
@@ -717,7 +767,7 @@ The following are not included unless a corresponding scope trade-off is approve
 | Gate | Date | Pass condition | Failure response |
 |---|---|---|---|
 | Scope lock | 2026-07-03 | Written agreement on included domains, channels, exclusions, and fallback rules | Remove lower-value scope before development expands |
-| Enterprise contract readiness | 2026-07-17 | RMS, R10/LDD, Stock Service, and WMS/MFC contracts and samples usable | Activate simulator-only fallback or reduce affected capability |
+| Enterprise contract readiness | 2026-07-17 | RMS, RMS/LDD, Stock Service, and WMS/MFC contracts and samples usable | Activate simulator-only fallback or reduce affected capability |
 | Admin Portal workflow readiness | 2026-07-17 | Operator roles, mapping upload rules, retry authority, and audit requirements approved | Portal build continues with restricted view-only scope until approvals land |
 | Channel test readiness | 2026-07-17 | Shopee, Lazada, TikTok, and Amaze/AxtraMall credentials and sandbox accounts working | Channel cannot be certified on time |
 | Core domain alpha | 2026-08-21 | Product, price/promo, order, stock run through simulators | Add senior support or reduce non-critical features |
@@ -733,13 +783,14 @@ The following are not included unless a corresponding scope trade-off is approve
 
 | Area | Target |
 |---|---|
-| Order acceptance | 250 orders/sec for two minutes; 500 orders/sec for two-minute headroom test |
+| Order acceptance (across all channels aggregate) | 250 orders/sec for two minutes; 500 orders/sec for two-minute headroom test |
 | Order acceptance latency | p99 edge receipt to Kafka quorum acknowledgement <= 250 ms |
 | Order visibility | p99 <= 3 seconds after acceptance |
 | Price/promo changed SKU | p95 <= 5 minutes where changed set fits certified quota and batch envelope |
 | General stock update | p95 <= 60 seconds where seller quota allows |
 | Campaign stock update | p95 <= 15 seconds for priority SKUs where quota allows |
 | Duplicate outcomes | Zero duplicate business outcomes for same order/version/command |
+| Webhook 202 response time | p99 edge receipt to HTTP 202 response <= 250 ms |
 | Accepted order loss | Zero acknowledged orders lost during failure tests |
 | Channel isolation | One channel outage must not block other channels |
 | Writer ownership | No Phoenix and legacy dual-write for same domain/channel/cohort |
@@ -765,7 +816,7 @@ The following are not included unless a corresponding scope trade-off is approve
 | DLQ | Dead Letter Queue; holding area for failed messages that cannot be processed safely without investigation or replay |
 | E2E | End-to-End; a complete flow across source, Phoenix, channel adapter, external API, and result/reconciliation path |
 | GitOps | Operating model where environment configuration and deployments are controlled through versioned Git changes |
-| LDD | Legacy/domain pricing or promotion source paired with R10 in this plan; exact owning system contract must be confirmed |
+| LDD | Legacy/domain pricing or promotion source paired with RMS/LDD in this plan; exact owning system contract must be confirmed |
 | MD | Manday; one person working for one day, generally treated as eight working hours for planning |
 | MFC | Micro-Fulfilment Center or fulfilment subsystem; part of the external fulfilment estate |
 | MVP | Minimum Viable Product; the smallest production release that satisfies the agreed November business goals |
@@ -776,8 +827,8 @@ The following are not included unless a corresponding scope trade-off is approve
 | PMC | Phoenix Multi-Channel Marketplace; the project/release being planned in this document |
 | POS | Point of Sale; Auto POS capture is excluded unless a minimal approved reuse is explicitly added |
 | QA | Quality Assurance; test planning, execution, automation, evidence, and release-quality ownership |
-| R10 | Enterprise price/promotion source referenced by the Phoenix requirements |
-| R10/LDD | Combined reference to the enterprise price and promotion source boundary used for this plan |
+| RMS/LDD | Enterprise price/promotion source referenced by the Phoenix requirements |
+| RMS/LDD | Combined reference to the enterprise price and promotion source boundary used for this plan |
 | Redis | In-memory data store used here for distributed quotas, disposable cache, and ATS-related atomic operations |
 | RMS | Retail/Product master source system for product snapshots, changes, and product mapping inputs |
 | SDK | Software Development Kit; shared adapter library for authentication hooks, retries, rate limits, telemetry, and common mechanics |

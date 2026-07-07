@@ -215,7 +215,7 @@ The provisional planning constraint is 100 requests/minute per unconfirmed selle
 
 ### 4.8 Enterprise systems as system personas
 
-RMS, R10/LDD, Stock Service, WMS/MFC, DHL, and Auto POS have independent rate, concurrency, retry, and contract constraints. Dedicated connector/rate-limiter workloads protect each dependency. The MFC value of 300 requests/hour is a working example pending confirmation, not a universal enterprise quota.
+RMS, RMS/LDD, Stock Service, WMS/MFC, DHL, and Auto POS have independent rate, concurrency, retry, and contract constraints. Dedicated connector/rate-limiter workloads protect each dependency. The MFC value of 300 requests/hour is a working example pending confirmation, not a universal enterprise quota.
 
 ## 5. Scope boundary: the line in the sand
 
@@ -224,7 +224,7 @@ RMS, R10/LDD, Stock Service, WMS/MFC, DHL, and Auto POS have independent rate, c
 | Domain | November capability |
 |---|---|
 | Product | RMS ingestion, versioned deltas, existing seller-SKU mapping, agreed attribute updates, inactive handling, reconciliation |
-| Price/promotion | R10/LDD ingestion, regular/promotion calculation, dates, Auto/Manual, override, clubpack, delta sync, quota-aware scheduling |
+| Price/promotion | RMS/LDD ingestion, regular/promotion calculation, dates, Auto/Manual, override, clubpack, delta sync, quota-aware scheduling |
 | Orders | Adapter webhook/poll ingress, raw archival, Kafka acceptance, canonical normalization, idempotency, persistence, cancellation-before-acceptance, fulfilment hand-off |
 | Channels | Shopee, Lazada, TikTok; WeChat, Amaze, Makro Pro conditional on gates |
 | Operations | Search, queue and SLA views, errors, DLQ, replay, reconciliation, kill switches, feature flags, writer ownership, audit |
@@ -300,7 +300,7 @@ RMS snapshots or changes are accepted through the enterprise connector boundary 
 
 #### Operating model
 
-R10/LDD price and promotion inputs are versioned and evaluated against effective dates, seller mapping, ownership policy, overrides, and clubpack quantity. Phoenix computes the seller-facing desired price, applies guardrails, generates commands only when the desired value changes, and schedules them according to campaign priority and certified API capacity.
+RMS/LDD price and promotion inputs are versioned and evaluated against effective dates, seller mapping, ownership policy, overrides, and clubpack quantity. Phoenix computes the seller-facing desired price, applies guardrails, generates commands only when the desired value changes, and schedules them according to campaign priority and certified API capacity.
 
 #### Requirements
 
@@ -475,9 +475,9 @@ Enterprise systems do not call business-service internals directly. Each source/
 
 | ID | Requirement | Phase |
 |---|---|---|
-| ENT-001 | Provide dedicated connector deployments for RMS, R10/LDD, Stock Service, WMS/MFC, DHL, and Auto POS when the corresponding domain is activated | FOUNDATION |
+| ENT-001 | Provide dedicated connector deployments for RMS, RMS/LDD, Stock Service, WMS/MFC, DHL, and Auto POS when the corresponding domain is activated | FOUNDATION |
 | ENT-002 | Keep Kafka between enterprise connectors and business services for burst absorption, replay, and independent pacing | FOUNDATION |
-| ENT-003 | Configure rate, concurrency, timeout, retry, circuit breaker, and maintenance windows independently per system/endpoint/operation | NOV-1 for RMS, R10/LDD, and WMS/MFC; later for other inactive flows |
+| ENT-003 | Configure rate, concurrency, timeout, retry, circuit breaker, and maintenance windows independently per system/endpoint/operation | NOV-1 for RMS, RMS/LDD, and WMS/MFC; later for other inactive flows |
 | ENT-004 | Archive source/request/response evidence according to data classification and retain a searchable reference | NOV-1 |
 | ENT-005 | Measure source availability and delay separately from Phoenix processing and dependency wait time | NOV-1 |
 | ENT-006 | Prevent connector retries or autoscaling from exceeding a certified external quota | NOV-1 |
@@ -535,7 +535,7 @@ For every operation, discovery must capture authentication, credential scope, en
 | System | November use | Later use | Contract requirement |
 |---|---|---|---|
 | RMS | Product snapshots/changes | Full catalog lifecycle input | Versioned source, checksum, extraction time, replayable payload |
-| R10/LDD | Price and promotion input | Guardrails and richer campaign rules | Effective-dated, timezone-explicit, versioned contract |
+| RMS/LDD | Price and promotion input | Guardrails and richer campaign rules | Effective-dated, timezone-explicit, versioned contract |
 | Stock Service | Not activated for production stock in November | Stock movements/snapshots for ATS | Ordered/replayable movement identity and reconciliation snapshot |
 | WMS/MFC | Accepted-order hand-off | Full status and cancellation compensation | Idempotent hand-off, stable reason codes, per-system quota; 300 requests/hour example pending confirmation |
 | DHL | Not required beyond agreed minimal existing flow | Delivery status/hand-off integration | Shipment/status identity, retry and webhook rules |
@@ -604,7 +604,7 @@ Queries missing the required partition timestamp are performance defects.
 
 ### 9.3 Object storage
 
-Object storage retains immutable RMS/R10 source snapshots, raw seller order payloads, adapter request/response evidence where permitted, reconciliation artifacts, and Kafka archive/recovery material. PostgreSQL stores references and searchable metadata rather than duplicating large payloads.
+Object storage retains immutable RMS/LDD source snapshots, raw seller order payloads, adapter request/response evidence where permitted, reconciliation artifacts, and Kafka archive/recovery material. PostgreSQL stores references and searchable metadata rather than duplicating large payloads.
 
 ### 9.4 Retention
 
@@ -1035,7 +1035,7 @@ Recommended funding sequence:
 
 - Marketplace API specifications, credentials, test accounts, quota owners, and certification contacts.
 - Readable old .NET adapter source and production behavior/configuration.
-- Representative RMS, R10/LDD, seller order, and fulfilment payloads.
+- Representative RMS, RMS/LDD, seller order, and fulfilment payloads.
 - Stable WMS/MFC accepted-order contract and test endpoint.
 - Approved canonical mappings and business rules.
 - Shared Kubernetes, Kafka, PostgreSQL, object-storage, security, and observability platform support.
@@ -1091,7 +1091,7 @@ The Product Owner owns scope and acceptance. The Tech Lead owns architecture and
 | Desired state | Latest approved seller-facing value Phoenix intends to achieve |
 | DLQ | Dead-letter queue for terminal/quarantined events requiring remediation |
 | Drain time | Forecast time required to clear pending work within effective API capacity |
-| LDD | Enterprise price/promotion source terminology used with R10 |
+| LDD | Enterprise price/promotion source terminology used with RMS/LDD |
 | MFC | Micro-fulfilment center/system within the external fulfilment estate |
 | Quota scope | Exact boundary to which an external rate limit applies |
 | Shadow mode | Phoenix calculates and records outcomes without owning external writes |

@@ -68,7 +68,8 @@ The reduced order forecast does not reduce product, price, promotion, or mart st
 
 | Capability | SLO | Measurement boundary |
 |---|---:|---|
-| Order acceptance | p99 ≤ 250 ms at 250/s | Edge receipt to Kafka quorum acknowledgement |
+| Order acceptance | p99 ≤ 250 ms at 250/s aggregate across all channels | Edge receipt to Kafka quorum acknowledgement |
+| Webhook 202 response | p99 ≤ 250 ms at 250/s aggregate | Edge receipt to HTTP 202 response |
 | Order ingestion availability | 99.99% monthly | Excludes invalid requests and seller outage |
 | Duplicate suppression | 100% for same channel/order/version key | Normalized order projection |
 | Reservation decision | p99 ≤ 750 ms; p99.9 ≤ 2 s | Kafka acceptance to reservation outcome |
@@ -101,7 +102,7 @@ Seller-caused latency is reported separately as `platform_wait_time`; it must ne
 flowchart LR
     subgraph Sources["Enterprise source systems"]
         RMS["RMS product master"]
-        R10["R10 price and promotion"]
+        R10["RMS/LDD price and promotion"]
         StockService["Stock Service"]
         MFC["WMS + MFC fulfilment<br/>Example: 300 requests/hour*"]
         DHL["DHL logistics partner<br/>(our own fleet)"]
@@ -147,52 +148,47 @@ Editable diagrams.net source: [`phoenix-high-level-architecture.drawio`](phoenix
 ```mermaid
 flowchart TB
     subgraph Enterprise["Enterprise systems and connector boundary"]
-        ES["RMS / R10-LDD / Stock Service / WMS-MFC / DHL / Auto POS"]
-        ERATE["Dedicated connector pods<br/>Distributed rate limiter per system and operation"]
+        ES["RMS (product + pricing) / LDD / Stock Service / WMS-MFC / DHL / Auto POS"]
+        ERATE["Enterprise connector (×2)"]
         ES <--> ERATE
     end
 
     subgraph Backbone["Durable event backbone"]
-        KEXT["Kafka external integration topics"]
-        KIN["Kafka order ingress topics"]
-        KDOM["Kafka domain topics"]
-        KOUT["Kafka sync command topics"]
+        KEXT["Kafka external topics — 3 brokers"]
+        KIN["Kafka order ingress — 12-24 partitions"]
+        KDOM["Kafka domain topics — 24-48 partitions"]
+        KOUT["Kafka sync command topics — 3-6 per channel"]
         KDLQ["Retry and DLQ topics"]
-        REG["Schema registry"]
+        REG["Schema registry (co-located)"]
     end
 
     subgraph Core["Commerce services"]
-        SRC["RMS / R10-LDD / Stock Service ingestion processors"]
-        OI["Order ingestion"]
-        ORCH["Order process manager"]
-        RES["Reservation service"]
-        ATS["ATS service"]
-        ALLOC["Allocation service"]
-        HANDOFF["Order hand-off service"]
-        STATUS["External status ingestion"]
-        SALE["Capture sale service"]
-        CAT["Catalog mapping"]
-        PRICE["Price / promo engine"]
-        SYNC["Sync orchestrator"]
+        OI["Order service (×3)<br/>o1a/o1c/o1d/o1b/o2/ORCH/HANDOFF/STATUS/SALE"]
+        RES["Inventory service (×3)<br/>ATS/RES/ALLOC"]
+        CAT["Catalog mapping (×2)"]
+        PRICE["Price service (×2)<br/>r1/r2/r4"]
+        SYNC["Sync service (×2)<br/>SYNC/r3"]
+        PSYNC["Product service (×2)<br/>p1/p2/p3a/p3b/p4"]
     end
 
-    subgraph Delivery["Bidirectional channel-isolated adapter cells"]
-        GW["API gateway / WAF<br/>shared platform capability"]
-        RATE["Rate-aware scheduler"]
-        A1["Shopee adapter<br/>webhook + poll + outbound"]
-        A2["Lazada adapter<br/>webhook + poll + outbound"]
-        A3["TikTok adapter<br/>webhook + poll + outbound"]
-        AM["Mart adapter cells<br/>webhook + poll + outbound"]
+    subgraph Delivery["Channel adapters (×2 each)"]
+        GW["API gateway / WAF (platform)"]
+        A1["Shopee adapter"]
+        A2["Lazada adapter"]
+        A3["TikTok adapter"]
+        AM["Amaze/AxtraMall adapter"]
     end
 
     subgraph Data["State and evidence"]
-        PG["HA PostgreSQL + native partitions"]
-        REDIS["Redis HA replication group"]
-        OBJ["Object storage"]
+        PG["PostgreSQL — 1 HA cluster + read replica"]
+        REDIS["Redis — 1 primary + 2 replicas (×3 total)"]
+        OBJ["Object storage — MinIO/S3"]
     end
 
     ERATE <--> KEXT
-    KEXT --> SRC --> KDOM
+    KEXT --> OI --> KDOM
+    KEXT --> PSYNC --> KDOM
+    KEXT --> PRICE --> KDOM
     GW --> A1
     GW --> A2
     GW --> A3
@@ -201,39 +197,28 @@ flowchart TB
     A2 --> KIN
     A3 --> KIN
     AM --> KIN
-    KIN --> OI --> KDOM
-    KDOM --> ORCH
-    ORCH --> RES --> REDIS
-    RES --> ATS --> REDIS
-    ATS --> KDOM
-    KDOM --> ALLOC --> KOUT
-    KDOM --> HANDOFF --> KEXT
-    KEXT --> STATUS --> KDOM
-    KDOM --> SALE --> KEXT
-    CAT --> PG
-    PRICE --> KDOM
+    KIN --> OI
+    KDOM --> RES
     KDOM --> SYNC --> KOUT
-    KOUT --> RATE
-    RATE --> A1
-    RATE --> A2
-    RATE --> A3
-    RATE --> AM
+    KOUT --> A1
+    KOUT --> A2
+    KOUT --> A3
+    KOUT --> AM
     A1 --> KDOM
     A2 --> KDOM
     A3 --> KDOM
     AM --> KDOM
     OI --> PG
     RES --> PG
-    ATS --> PG
-    HANDOFF --> PG
-    STATUS --> PG
-    SALE --> PG
+    CAT --> PG
+    PRICE --> PG
     SYNC --> PG
+    PSYNC --> PG
     KIN --> OBJ
     KDOM --> OBJ
     REG --- KIN
     REG --- KDOM
-    KDLQ --- RATE
+    KDLQ --- SYNC
 ```
 
 ### 4.1 Workload planes
@@ -243,9 +228,29 @@ flowchart TB
 | Channel ingress | Channel adapters receive authenticated webhooks or poll with overlap-safe cursors, perform lightweight envelope checks, archive raw payloads, and append to Kafka | Channel account and order ID | Never waits for PostgreSQL, Redis, external fulfilment, or outbound seller API calls |
 | Order | Idempotency, lifecycle state, process management | `hash(channel_account_id, order_id)` | Partition ordering per order |
 | Inventory | Reservation, release, ATS, allocation | `hash(store_id, sku_id)` | Single ordered writer per inventory key |
-| External hand-off | Deliver accepted orders to the existing fulfilment estate and consume canonical status events | Order ID | Phoenix owns no warehouse workflow or WMS state |
+| Fulfilment | Warehouse assignment, split fulfilment, priority scheduling, rate-limited dispatch to MFC/legacy MKP (DC1/DC2), SLA preemption | `order_id + warehouse_id` | Per-warehouse rate limit; never blocks order ingestion |
 | Sync | Stock, price, promo, status fan-out | Channel + seller account + entity key | Independent channel delivery cells |
 | Query/ops | Operational projections, campaign dashboards, reconciliation | Tenant/date/query dimension | Cannot consume transactional database capacity without limits |
+
+### 4.2 Pod count summary
+
+Cost-optimized for 50k orders/day / 250/s peak. Services merged by domain per the logical architecture above. No Admin Portal pods — existing PAP (Phoenix Admin Portal) is reused.
+
+| Deployment unit | Min | Max | Activation | What it contains | Rationale |
+|---|---|---|---|---|---|
+| **Order service** | 3 | 5 | Always-on, Kafka-triggered + HTTP (o1a) | o1a webhook intake, o1c classifier, o1d enrichment, o1b polling, o2 normalization, ORCH process manager, HANDOFF fulfilment, STATUS status ingestion, SALE capture | Same critical path; one binary with separate goroutine pools. Saves ~10 pods vs individual services. |
+| **Inventory service** | 3 | 4 | Always-on, Kafka-triggered | ATS, reservation (RES), allocation (ALLOC) | All Redis-backed, same Lua primitives, same store/SKU partition key. |
+| **Product service** | 2 | 3 | Always-on, Kafka-triggered + scheduler | p1-p4 (RMS ingestion, cross-ref, diff commands, reconciliation, listing pull, drift detection) | Whole product sync pipeline in one binary. |
+| **Price service** | 2 | 3 | Always-on, Kafka-triggered | r1 (RMS/LDD ingestion), r2 (promotion rules), r4 (reconciliation) | Effective price + promotion rules + reconciliation. |
+| **Sync service** | 2 | 2 | Always-on, Kafka-triggered + HTTP | SYNC orchestrator, r3 rate-aware scheduler | Coalescing + scheduling tightly coupled. |
+| **Enterprise connector** | 2 | 2 | Always-on, HTTP/gRPC | Per-system rate-limited connectors (RMS, RMS/LDD, Stock Service, WMS/MFC, DHL, Auto POS) | One binary with per-system worker pools. |
+| **Shopee adapter** | 2 | 2 | Always-on, HTTP + polling + Kafka consumer | Shopee-specific webhook/poll/outbound | Capped by 100 req/min quota; 2 pods for AZ tolerance. |
+| **Lazada adapter** | 2 | 2 | Always-on, HTTP + polling + Kafka consumer | Lazada-specific webhook/poll/outbound | Same as Shopee. |
+| **TikTok adapter** | 2 | 2 | Always-on, HTTP + polling + Kafka consumer | TikTok-specific webhook/poll/outbound | Same as Shopee. |
+| **Amaze adapter** | 2 | 2 | Always-on, HTTP + polling + Kafka consumer | Amaze/AxtraMall-specific webhook/poll/outbound | Same as Shopee. |
+| **Catalog mapping** | 2 | 2 | Always-on, HTTP/gRPC | Catalog config, channel policy, product mapping | Read-heavy; cache-backed. |
+| **Batch runner** | 0 | 1 | Scale-to-zero, cron/manual | Reconciliation, partition controller, load test harness | K8s Job, not Deployment. |
+| **Total** | **24** | **32** | | No Admin pods — PAP Portal is reused. | |
 
 ## 5. Critical runtime flows
 
@@ -257,33 +262,126 @@ sequenceDiagram
     participant C as Seller channel
     participant G as Gateway / WAF
     participant A as Channel adapter
+    participant W as Webhook intake (o1a)
+    participant R as Redis dedup cache
+    participant Cl as Message classifier (o1c)
     participant K as Kafka
-    participant O as Order ingestion
-    participant R as Reservation service
-    participant D as Redis ATS
+    participant E as Detail enrichment (o1d)
+    participant O as Order ingestion (o2)
     participant P as PostgreSQL
-    participant X as Existing fulfilment estate
 
     C->>G: Signed order webhook
     G->>A: Authenticated inbound request
     A->>A: Verify signature, size-limit, validate envelope
-    A->>K: Produce raw order (acks=all)
-    K-->>A: Quorum committed
-    A-->>C: 2xx accepted
-    K->>O: Consume partition by channel/order
-    O->>O: Normalize + idempotency check
+    A->>A: Map platform event type to canonical push type (e.g., ORDER_CREATED)
+    A->>W: Forward to webhook intake
+    W->>R: Redis fast-path dedup check by push_id
+    R-->>W: Hit (already processed) → return 200 OK without archival
+    R-->>W: Miss → proceed
+    W->>W: Archive raw payload to object storage
+    W->>R: SADD safety-net:{channel}:processed {order_id} EX 1800
+    W->>K: Produce raw payload to quorum topic (acks=all)
+    K-->>W: Quorum committed
+    W-->>A: 202 accepted
+    A-->>C: 202 accepted
+
+    Note over A,C: Webhook response returned immediately after Kafka quorum (no business processing yet)
+    K->>Cl: Consume raw push notification
+    Cl->>Cl: Classify message type (ORDER_CREATED, PRODUCT_UPDATED, PRICE_CHANGED)
+    Cl->>K: Publish to order.ingest.<channel>.v1
+
+    K->>E: Consume lightweight order notification from order.ingest.<channel>.v1
+    E->>E: Coalesce same-type notifications within time window
+    E->>E: Invoke rate-limited bulk GetOrderDetail API via r3 scheduler
+    E-->>E: Partial batch failure → retry individually, DLQ permanent failures
+    E->>K: Publish enriched canonical order to order.enriched.v1
+
+    K->>O: Consume enriched order from order.enriched.v1
+    O->>O: Normalize + idempotency check (PostgreSQL-based)
+    O->>P: Persist to partitioned orders table
     O->>K: order.received.v1
-    K->>R: Reserve by store/SKU partition
-    R->>D: Atomic Lua reserve + dedupe token
-    D-->>R: reserved / rejected / duplicate
-    R->>K: reservation result
     K->>P: Micro-batched authoritative projections
-    K->>X: Asynchronous accepted-order hand-off
 ```
 
-The channel adapter returns the webhook response only after Kafka confirms durable acceptance; this does not mean external fulfilment has completed. Invalid signatures and malformed envelopes are rejected synchronously. Canonical normalization, idempotency, and all business decisions run asynchronously in `order-ingestion-service` after Kafka.
+The channel adapter returns the webhook response only after Kafka confirms durable acceptance; this does not mean external fulfilment has completed. Invalid signatures and malformed envelopes are rejected synchronously. Redis fast-path dedup rejects duplicate push IDs within the TTL window before archival, returning 200 OK without duplicate business outcomes. On first acceptance, o1a inserts the order_id into a Redis set (`safety-net:{channel}:processed`) with TTL 1800s (30 min) for backup safety-net cross-reference.
 
-For polling-only channels, the same channel-adapter deployment uses distributed leases and overlap-safe cursors. Every result enters the same raw order topic and follows the same idempotent flow. Inbound and outbound adapter workers use separate concurrency pools so webhook bursts cannot starve required seller updates.
+For polling-only channels, the same channel-adapter deployment uses distributed leases and overlap-safe cursors (o1b). Every result enters the same raw order topic through the same classifier pipeline and follows the same idempotent flow. A backup safety-net polling mode runs every 15 minutes per channel with a 30-minute time-window overlap scan. It queries the `safety-net:{channel}:processed` Redis set (TTL 30 min, matching the scan window) via `SMISMEMBER` to skip already-consumed orders and forward only missed ones to o1a. Missed orders are re-inserted into the Redis set at forward time.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Seller channel
+    participant A as Channel adapter
+    participant B as Polling framework (o1b)
+    participant W as Webhook intake (o1a)
+    participant R as Redis dedup cache
+    participant K as Kafka
+    participant Cl as Message classifier (o1c)
+    participant E as Detail enrichment (o1d)
+    participant O as Order ingestion (o2)
+    participant P as PostgreSQL
+
+    Note over B,A: Poll cycle start (scheduled interval)
+
+    B->>B: Acquire distributed poll lease (Redis TTL)
+    B->>A: Trigger poll with cursor (since timestamp)
+    A->>C: GET orders?since=2026-07-01T00:00:00Z&page=1
+    C-->>A: Order list with next_page_token
+    A->>B: Return poll results + cursor position
+
+    B->>B: Persist overlap-safe cursor to PostgreSQL
+
+    par Next page
+        A->>C: GET orders?page=2
+        C-->>A: Remaining orders
+        A->>B: Forward
+        B->>B: Update cursor
+    end
+
+    B->>B: Release lease
+
+    B->>W: Forward raw orders to webhook intake
+    W->>R: Redis dedup check by order_id
+    R-->>W: Miss → proceed
+    W->>W: Archive raw payload to object storage
+    W->>R: SADD safety-net:{channel}:processed {order_id} EX 1800
+    W->>K: Produce raw payload to quorum topic (acks=all)
+    K-->>W: Quorum committed
+
+    K->>Cl: Consume raw order
+    Cl->>Cl: Classify as ORDER_CREATED
+    Cl->>K: Publish to order.ingest.<channel>.v1
+
+    K->>E: Consume from order.ingest.<channel>.v1
+    E->>E: Coalesce + rate-limited bulk GetOrderDetail
+    E->>K: Publish enriched order to order.enriched.v1
+
+    K->>O: Consume from order.enriched.v1
+    O->>O: Normalize + idempotency check
+    O->>P: Persist to partitioned orders table
+    O->>K: order.received.v1
+
+    Note over B,A: Backup safety-net (every 15 min per channel)
+
+    B->>B: Acquire safety-net lease
+    B->>A: Scan window: GET orders?since={now - 30m}
+    A->>C: GET orders with time-window overlap
+    C-->>A: All orders in window
+    A->>B: Forward results
+    B->>R: SMISMEMBER safety-net:{channel}:processed {order_id_1} {order_id_2} ...
+    R-->>B: Bitmask of already-processed IDs
+    alt Order already consumed (via push or prior poll)
+        B->>B: Skip — already processed
+    else Missed order (TTL expired or never arrived via push)
+        B->>R: SADD safety-net:{channel}:processed {order_id} EX 1800
+        B->>W: Forward missed order to o1a (same pipeline)
+    end
+    B->>B: Persist safety-net scan result: matched_count, missed_count, window_start, window_end, duration_ms
+    B->>K: safety-net.scan.complete (governance event for stats and alerting)
+    B->>B: Persist safety-net cursor ({channel}, {cursor}, {last_scanned_at}), release lease
+```
+
+Inbound and outbound adapter workers use separate concurrency pools so webhook bursts cannot starve required seller updates.
 
 ### 5.2 Stock up-sync: Phoenix to seller channels
 
@@ -323,7 +421,7 @@ The price and promotion sync workflow follows a five-step pipeline from enterpri
 ```mermaid
 sequenceDiagram
     autonumber
-    participant R as R10/LDD (enterprise)
+    participant R as RMS/LDD (enterprise)
     participant K as Kafka
     participant I as Price ingestion
     participant E as Effective price engine
@@ -384,7 +482,7 @@ sequenceDiagram
     Note over M,S: Subsequent sync cycles skip Shopee for this UPC
 ```
 
-**Step 1 — Ingest prices and promotions from R10/LDD:** R10 snapshot and LDD promotion events are consumed from Kafka, with timezone normalization to UTC, effective-date window validation, and deterministic version comparison. Stale source versions are rejected. Promotions carry precedence, clubpack multipliers, ownership tags (Auto/Manual), and guardrail thresholds.
+**Step 1 — Ingest prices and promotions from RMS/LDD:** RMS snapshot and LDD promotion events are consumed from Kafka, with timezone normalization to UTC, effective-date window validation, and deterministic version comparison. Stale source versions are rejected. Promotions carry precedence, clubpack multipliers, ownership tags (Auto/Manual), and guardrail thresholds.
 
 **Step 2 — Apply promotion to base price:** The effective price engine combines the base price with all active promotions at a given business timestamp. Overlapping promotions are resolved by precedence (higher wins). The engine handles percentage discounts (`base × (1 − pct)`), fixed discounts (`base − amount`), clubpack multiplication (`base × multiplicand`), and no-promotion fallback (`base`). Prices outside their effective window or quarantined by guardrails (>50% drop, >10× increase) are not published to channels.
 
@@ -392,11 +490,227 @@ sequenceDiagram
 
 **Step 4 — Read-back prices from seller center:** A periodic read-back process polls each seller's API for current listing prices and compares them against Phoenix's desired effective price. Matches are marked `PRICE_VERIFIED`. Drift triggers a `PRICE_DRIFT_DETECTED` alert. If the UPC has `price_field=MANUAL` for that seller, the drift is logged as informational only and no overwrite is attempted — preserving the seller-centre price set by the operator.
 
-**Step 5 — Manual price field per UPC prevents up-sync:** Operators configure per-UPC, per-channel, per-field mode (Auto/Manual) through the Admin Portal (a4). When a price field is set to `MANUAL` for a specific UPC and seller, all up-sync of that field to that seller is suppressed — even if the R10/LDD source price changes. The same UPC can have `price_field=AUTO` for another seller and continue syncing normally. The configuration is effective-dated, versioned, and fully audited.
+**Step 5 — Manual price field per UPC prevents up-sync:** Operators configure per-UPC, per-channel, per-field mode (Auto/Manual) through the Admin Portal (a4). When a price field is set to `MANUAL` for a specific UPC and seller, all up-sync of that field to that seller is suppressed — even if the RMS/LDD source price changes. The same UPC can have `price_field=AUTO` for another seller and continue syncing normally. The configuration is effective-dated, versioned, and fully audited.
 
 ### 5.4 Order status up-sync
 
 The existing fulfilment estate emits canonical status events through the Phoenix integration contract. Phoenix does not execute warehouse operations. A channel-specific state machine maps external canonical states to permitted seller transitions. The adapter rejects backward or impossible transitions locally, sends only the next legal state, and records platform acknowledgement. Reconciliation detects seller/Phoenix divergence and raises an operations task.
+
+### 5.5 Product sync: initial channel listing pull, RMS cross-reference, and ongoing push-driven detection
+
+Product sync does **not** push every RMS product to seller channels. Instead, Phoenix first pulls existing listings from seller platforms, cross-references them against the RMS product master, and generates diff-based commands only for what needs to change. After the initial sync, product changes follow the same push pipeline as orders.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant R as RMS (enterprise)
+    participant K as Kafka
+    participant I as RMS ingestion (p1)
+    participant Pg as PostgreSQL
+    participant A as Channel adapter
+    participant L as Listing pull engine (p4)
+    participant X as Cross-reference engine (p2)
+    participant G as Diff command generator (p3a)
+    participant Q as Channel rate queue
+    participant C as Seller API
+    participant D as Push-driven drift detector (p4)
+
+    Note over R,D: Phase 1 — Ingest RMS product master
+
+    R->>K: product.snapshot / change.event
+    K->>I: Consume by version
+    I->>I: Version comparison, delta decision
+    I->>Pg: Persist RMS product master (SKU, title, price, status, version)
+    I->>K: product.ingested.v1
+
+    Note over I,A: Phase 2 — Pull existing channel listings
+
+    A->>C: GetShopeeProductList (paginated)
+    C-->>A: Existing listings (listing_id, SKU ref, title, price, status)
+    A->>L: Forward listings to pull engine
+    L->>Pg: Store in channel_listings table
+
+    Note over L,X: Phase 3 — Cross-reference RMS vs channel listings
+
+    Pg->>X: RMS product master + channel listings
+    X->>X: For each product: compare RMS vs channel state
+    X-->>X: Classify: MATCHED / MISSING_ON_CHANNEL / MISSING_IN_RMS / FIELD_DRIFTED / DEACTIVATED_ON_CHANNEL
+    X->>Pg: Persist match status, action intent (CREATE/UPDATE/DEACTIVATE)
+    X->>K: product.cross-reference.complete
+
+    Note over X,G: Phase 4 — Generate diff-based commands
+
+    Pg->>G: Read desired-state with action intent
+    alt action=CREATE
+        G->>Q: Queue product create command
+    else action=UPDATE
+        G->>Q: Queue product update command
+    else action=DEACTIVATE
+        G->>Q: Queue product deactivate command
+    end
+    Q->>C: Quota-controlled product update
+    C-->>Q: Accepted / retryable / permanent error
+    Q->>K: sync.result.v1
+
+    Note over G,D: Phase 5 — Ongoing push-driven drift detection
+
+    A->>K: product.updated push notification (via o1c)
+    K->>D: Consume product.updated notification
+    D->>Pg: Cross-reference against RMS master
+    D-->>D: Detect drift: title changed? price drifted? status changed?
+    D->>K: product.drift.detected or product.verified
+    Note over D,A: Incremental changes flow through same pipeline without full re-pull
+```
+
+**Phase 1 — Ingest RMS product master (p1):** RMS snapshots and change events are consumed, version-compared, and persisted to PostgreSQL. The product master contains SKU, title, description, attributes, price reference, status, and version.
+
+**Phase 2 — Pull existing channel listings (p4):** Once channel adapters (c1-c4) are available with listing read-back capability, Phoenix pulls all existing product listings from each seller platform. These are stored in the `channel_listings` table with channel, listing_id, SKU reference, title, price, status, and fetched_at.
+
+**Phase 3 — Cross-reference RMS vs channel listings (p2):** The cross-reference engine compares each RMS product master record against the corresponding channel listing. For each product-channel pair, it determines the match status: `MATCHED` (SKU match + fields in sync), `FIELD_DRIFTED` (SKU match but fields differ), `MISSING_ON_CHANNEL` (RMS product not found on channel), `MISSING_IN_RMS` (channel listing has no RMS counterpart), or `DEACTIVATED_ON_CHANNEL`. The desired-state ledger records the action intent: `CREATE`, `UPDATE`, or `DEACTIVATE`.
+
+**Phase 4 — Generate diff-based commands (p3a):** From the desired-state action intent, channel-neutral create/update/deactivate commands are generated and dispatched through the quota-aware scheduler (r3). Obsolete pending commands for the same SKU/channel are coalesced to the latest version.
+
+**Phase 5 — Ongoing push-driven drift detection (p4):** After initial sync, product changes from seller platforms arrive as push notifications via the o1c classifier. The push-driven drift detection engine cross-references each notification against the RMS master and desired-state ledger to detect and flag drifts without requiring a full re-pull cycle.
+
+### 5.6 Fulfilment routing and dispatch
+
+After canonical order ingestion (o2) publishes to `order.received.v1`, the fulfilment pipeline assigns each order line to a warehouse, splits multi-warehouse orders into logical fulfilment units, prioritises by type and SLA deadline, and dispatches to the correct fulfilment system within its rate capacity.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant O as Order ingestion (o2)
+    participant K as Kafka
+    participant FR as Fulfilment Router
+    participant Pg as PostgreSQL
+    participant M as SKU-Warehouse mapping
+    participant FS as Fulfilment Scheduler
+    participant RQ as Redis priority queues
+    participant RL as Redis rate limiter
+    participant MFC as MFC API
+    participant LEG as Legacy MKP API
+
+    O->>K: order.received.v1
+
+    K->>FR: Consume order from order.received.v1
+    FR->>FR: For each line: determine warehouse_code
+    alt line has explicit warehouse_code (MFC/DC1/DC2)
+        FR->>FR: Use direct code
+    else code is empty
+        FR->>M: Lookup sku_warehouse_mapping
+        M-->>FR: warehouse_code
+    end
+    FR->>FR: Group lines by warehouse
+    alt lines span multiple warehouses
+        FR->>FR: Create split fulfilment units
+    end
+    FR->>Pg: Persist routing decision
+    FR->>K: fulfilment.unit.<warehouse>.v1
+
+    K->>FS: Consume unit from warehouse-specific topic
+    FS->>Pg: Read unit metadata
+    FS->>RQ: ZADD queues by priority + deadline
+    FS->>RQ: HSET unit metadata
+
+    Note over FS,RQ: Scheduling cycle begins
+
+    FS->>RQ: Check SLA urgency (deadline < 30 min away)
+    alt Urgent deadline
+        FS->>RQ: ZPOPMIN from any priority queue
+    else Weighted dispatch
+        FS->>RQ: ZPOPMIN weighted by slot counter
+        Note over FS,RQ: Instant 72% : Normal 20% : Express 8%
+    end
+
+    FS->>RL: Check token bucket for warehouse
+    alt Tokens available
+        alt warehouse == MFC
+            FS->>MFC: POST /request_pick
+            MFC-->>FS: 202 / 429 / 5xx
+        else DC1 or DC2
+            FS->>LEG: POST /fulfil
+            LEG-->>FS: 200 / 429 / circuit open
+        end
+
+        alt Accepted
+            FS->>K: fulfilment.dispatch.v1 (accepted)
+            FS->>Pg: Update dispatch status
+        else Retryable
+            FS->>RQ: Re-enqueue with backoff
+            FS->>K: fulfilment.dispatch.v1 (retry)
+        else Permanent failure
+            FS->>K: fulfilment.unit.dlq.v1
+            FS->>Pg: Record exception
+        end
+    else Throttled
+        FS->>FS: Defer to next cycle
+    end
+```
+
+#### Warehouse assignment
+
+Each order line carries an optional `warehouse_code`. Channels may set this directly during ingestion, or Phoenix resolves it at routing time:
+
+| `warehouse_code` | Target | Rate limit | Behaviour |
+|---|---|---|---|
+| `MFC` | MFC fulfilment API | ~300 requests/hour; dedicated token bucket | Idempotent POST /request_pick |
+| `DC1` | Legacy marketplace endpoint | 1000 requests/hour per warehouse; circuit breaker for degradation | POST /fulfil; circuit opens on >50% failure in window |
+| `DC2` | Legacy marketplace endpoint | Same as DC1 (independent bucket) | Same as DC1 |
+
+When a line has no explicit `warehouse_code`, the router queries the `sku_warehouse_mapping` table in PostgreSQL to resolve it. This mapping is uploaded through the Admin Portal (a3) and supports overrides per SKU, channel, and seller account.
+
+If a single order contains lines mapped to different warehouses, the router splits the order into logical **fulfilment units** — one per warehouse. Each unit carries the parent `order_id`, its subset of line items, the target warehouse, the order priority type, and the SLA deadline. The split is recorded in the `fulfilment_routing` table with a stable `fulfilment_unit_id` for tracking and reconciliation.
+
+#### Priority scheduling
+
+Orders have three priority types derived from the seller-channel order type:
+
+| Priority | Traffic weight | SLA deadline |
+|---|---|---|
+| Instant | 72% | Shortest (e.g., 15–60 min from acceptance) |
+| Express | 8% | Medium (e.g., 2–4 hours) |
+| Normal | 20% | Longest (e.g., 24–48 hours) |
+
+The scheduler maintains three Redis sorted sets per warehouse, keyed as `fulfilment:q:{warehouse_id}:{instant\|express\|normal}`. Each member is a `fulfilment_unit_id` scored by its `deadline_at` Unix timestamp.
+
+**Scheduling algorithm (per warehouse, per cycle):**
+
+1. **SLA urgency check** — Query all three queues with `ZRANGEBYSCORE ... -inf {now + 1800}`. If any unit has a deadline within 30 minutes, pick the most urgent regardless of priority type.
+2. **Weighted round-robin** — If no urgent units, advance a 100-slot counter (stored in `fulfilment:sched:{warehouse_id}:slot`). Slots 0–71 select Instant, 72–91 select Normal, 92–99 select Express. If the selected queue is empty, fall through to the next non-empty queue.
+3. **Rate-limit check** — Before dispatching, check the warehouse's Redis token bucket. If tokens are exhausted, defer to the next cycle.
+4. **Dispatch** — Set an in-flight guard (`fulfilment:inflight:{unit_id}`, TTL = dispatch timeout), call the external fulfilment API, record the result, and remove the guard.
+
+The weight ratio is runtime-configurable through the capability registry (s2) and should be validated against production order mix.
+
+#### Fulfilment system rate limits
+
+Each warehouse endpoint has an independent Redis token bucket:
+
+| Warehouse | Initial capacity | Refill rate | Backpressure behaviour |
+|---|---|---|---|
+| MFC | 300 tokens | 300/hour | Queue backlog; alert on estimated drain > 2 hours |
+| DC1 | 1000 tokens | 1000/hour | Circuit breaker protects against sustained degradation |
+| DC2 | 1000 tokens | 1000/hour | Same as DC1 (independent bucket for isolation) |
+
+Legacy MKP endpoints (DC1, DC2) each have an initial quota of 1000 requests/hour with a dedicated token bucket. The circuit breaker opens when consecutive failures exceed a configurable threshold (default 5 within 60 s). Half-open probes attempt one request every 30 s; success closes the circuit and resumes full rate. An observed failure plateau may justify reducing the allowed rate, but the initial 1000/hour budget is the certified planning value.
+
+#### Data model
+
+New PostgreSQL tables added to the Fulfilment domain (section 8.1):
+
+| Table | Purpose | Key |
+|---|---|---|
+| `fulfilment_routing` | Routing decision per unit: unit_id, order_id, warehouse_id, items (JSON), priority, deadline_at, status | `(order_id, unit_id)` |
+| `fulfilment_dispatch` | Dispatch attempt ledger: unit_id, warehouse_id, status, payload_hash, response_code, latency_ms, attempted_at | `unit_id` + sequential attempt |
+| `sku_warehouse_mapping` | SKU to warehouse resolution: sku, channel, warehouse_code, effective_at, override_by | `(sku, channel)` |
+
+New Kafka topics (added to section 7.1):
+
+| Topic | Description | Notes |
+|---|---|---|---|
+| `fulfilment.unit.<warehouse>.v1` | Warehouse-assigned fulfilment units after routing | One topic per warehouse (e.g., `fulfilment.unit.mfc.v1`, `fulfilment.unit.dc1.v1`); independent consumer groups for isolation |
+| `fulfilment.dispatch.v1` | Dispatch result events (accepted, retry, permanent failure) | Single topic consumed by order lifecycle tracking |
+| `fulfilment.unit.dlq.v1` | Permanently failed fulfilment units requiring operator intervention | Single topic for unified ops view |
 
 ## 6. Event and consistency model
 
@@ -457,12 +771,20 @@ Retries have a maximum age and attempt budget. A retry storm must not outrank ne
 
 Use versioned topics and separate traffic classes:
 
-- `raw.order.accepted.v1` — immutable seller payload reference and adapter-validated transport envelope; canonical normalization occurs in order ingestion.
+- `order.raw.accepted.v1` — immutable seller payload reference and adapter-validated transport envelope; canonical normalization occurs in order ingestion.
+- `order.ingest.<channel>.v1` — classified order push notifications per channel, consumed by the channel-specific detail enrichment (o1d) for rate-limited GetOrderDetail.
+- `order.enriched.v1` — enriched canonical order payloads (after o1d), consumed by order ingestion (o2).
+- `product.notification.v1` — classified product change push notifications (product.updated, listing.changed) from seller platforms via o1c.
+- `price.notification.v1` — classified price change push notifications (price.changed) from seller platforms via o1c.
+- `channel.listing.v1` — channel listing pull results (initial and periodic) for cross-referencing against RMS master.
 - `order.lifecycle.v1` — canonical order transitions.
 - `inventory.movement.v1` and `inventory.reservation.v1` — stock-affecting commands.
 - `inventory.ats.v1` and `allocation.changed.v1` — calculated state.
-- `sync.stock.<channel>.v1`, `sync.price-promo.<channel>.v1`, `sync.order-status.<channel>.v1` — channel-isolated delivery.
+- `stock.sync.<channel>.v1`, `price.promo.sync.<channel>.v1`, `order.status.sync.<channel>.v1` — channel-isolated delivery.
 - `sync.result.v1` — normalized external results.
+- `fulfilment.unit.<warehouse>.v1` — warehouse-assigned fulfilment units after routing; one topic per warehouse (e.g., `fulfilment.unit.mfc.v1`, `fulfilment.unit.dc1.v1`) with independent consumer groups.
+- `fulfilment.dispatch.v1` — dispatch result events (accepted, retry, permanent failure).
+- `fulfilment.unit.dlq.v1` — permanently failed fulfilment units requiring operator intervention.
 - Domain-specific `.retry.<delay>.v1` and `.dlq.v1` topics.
 
 ### 7.2 Initial production envelope
@@ -505,8 +827,11 @@ Use one highly available PostgreSQL cluster with a primary and synchronous or ne
 | Orders | Order headers, lines, lifecycle, packages, external hand-off and status references | Adopt the monthly range partitions already implemented by `phoenix-oms-mkp-service` |
 | Inventory ledger | Durable movements, reservation outcomes, reconciliation | Monthly partitions initially; move to weekly/daily only if measured growth requires it |
 | Sync ledger | Desired/sent/accepted versions, attempts, errors | Monthly partitions with retention/archive policy |
+| Channel listings | Pulled product listings from seller platforms: channel, listing_id, SKU reference, title, price, status, fetched_at, RMS match status, drift metadata | Non-partitioned with indexes on (channel, listing_id) and (channel, sku_reference); periodic cleanup of stale records |
+| Channel credentials | Encrypted OAuth tokens per channel+account: access_token, refresh_token, token_type, expires_at, created_at | Non-partitioned; unique key on (channel, account_id); tokens encrypted at rest |
 | Catalog/config | Product, mapping, channel policy, campaign config | Read replicas and cache; lower write volume |
 | Operations | Exception tasks, cutover state, approvals | Dedicated schema/roles and bounded query pool |
+| Fulfilment | Routing decisions per order, dispatch attempt ledger, SKU-warehouse mapping | Non-partitioned; indexes on `(order_id, unit_id)` and `(sku, warehouse_code)` |
 
 Do not introduce an application shard router at the forecast volume. Keep stable aggregate keys and repository interfaces so a later sharding migration is possible, but defer physical sharding until measured sustained writes, database size, vacuum pressure, or recovery time cannot meet SLOs after vertical scaling, indexing, and native partitioning have been exhausted.
 
@@ -572,6 +897,21 @@ Initial capacity should assume at least 2x peak memory and operations headroom a
 
 Begin with one inventory primary and two replicas distributed across three availability zones, or an equivalent highly available topology. The key model remains Redis Cluster-compatible so horizontal sharding can be enabled later. Add primary shards only when measured memory, hot store/SKU skew, Lua latency, or failover behavior requires them.
 
+#### Fulfilment priority queues and rate limiters
+
+The fulfilment dispatch pipeline uses Redis for ephemeral priority queuing and per-warehouse rate limiting. These keys live in the non-ATS Redis deployment (disposable caches/rate counters) and are loss-tolerant — the durable queue is Kafka.
+
+| Key pattern | Type | Purpose | TTL |
+|---|---|---|---|
+| `fulfilment:q:{warehouse_id}:{priority}` | ZSET | Priority queue sorted by `deadline_at` | None (explicit cleanup on dispatch) |
+| `fulfilment:meta:{unit_id}` | HASH | Unit metadata for dispatch (items JSON, priority, deadline, retry_count) | 24h |
+| `fulfilment:rl:{warehouse_id}:tokens` | String | Token bucket available count | None |
+| `fulfilment:rl:{warehouse_id}:ts` | String | Token bucket last refill unix timestamp | None |
+| `fulfilment:inflight:{unit_id}` | String | Dispatch in-flight guard with worker ID | Dispatch timeout (configurable) |
+| `fulfilment:sched:{warehouse_id}:slot` | String | Weighted round-robin slot counter (0–99) | None |
+
+Priority values are `instant`, `express`, or `normal`. The ZSET score is the Unix timestamp of the SLA deadline, enabling O(log N) oldest-first retrieval and urgency range queries (`ZRANGEBYSCORE`).
+
 ### 8.3 Object storage and operational search
 
 - Store raw source snapshots, seller payloads, large request/response bodies, Kafka archive, and reconciliation exports in encrypted object storage.
@@ -585,6 +925,11 @@ Begin with one inventory primary and two replicas distributed across three avail
 
 Each seller channel is an independently deployable **delivery cell** containing:
 
+- OAuth authorization code flow handler (auth button redirect, callback endpoint, state/CSRF validation, auth_code exchange, token persistence).
+- Token lifecycle manager: auto-refresh access tokens on 401, refresh token rotation, concurrent refresh guard, Redis TTL-based token cache.
+- Refresh token expiry monitor: configurable TTL threshold, Admin Portal notification for operator re-auth.
+- Push type mapper: maps platform-specific event types (e.g., Shopee `ORDER_CREATED`, `ITEM_UPDATED`, `PRICE_CHANGED`) to canonical push types consumed by the o1c message classifier.
+- Listing read-back engine: pulls existing product listings from seller platforms for the p4 cross-reference pipeline.
 - Command consumer and desired-state coalescer.
 - Account-aware token-bucket limiter stored in Redis.
 - Weighted fair scheduler.
@@ -606,13 +951,13 @@ Fairness is enforced across seller accounts so one large account cannot starve o
 
 ### 9.1 External dependency and seller-channel rate limits
 
-Rate limiting applies on both sides of Kafka. Enterprise connector pods protect RMS, R10/LDD, Stock Service, WMS/MFC, DHL, and Auto POS; seller adapter pods protect each marketplace API. Kafka absorbs bursts and provides replay, but consumers must be paced by the downstream system's certified quota rather than by Kafka lag or pod count.
+Rate limiting applies on both sides of Kafka. Enterprise connector pods protect RMS (product), RMS/LDD (pricing), Stock Service, WMS/MFC, DHL, and Auto POS; seller adapter pods protect each marketplace API. Kafka absorbs bursts and provides replay, but consumers must be paced by the downstream system's certified quota rather than by Kafka lag or pod count.
 
 | External dependency | Provisional request budget | Required discovery before production |
 |---|---:|---|
 | WMS/MFC | 300 requests/hour example | Confirm whether the quota is global or scoped by endpoint, operation, credential, facility, and request direction |
 | RMS | Unknown | Rate, concurrency, payload/bulk limits, retry timing, maintenance windows |
-| R10/LDD | Unknown | Rate, concurrency, payload/bulk limits, retry timing, effective-date behavior |
+| RMS/LDD | Unknown | Rate, concurrency, payload/bulk limits, retry timing, effective-date behavior |
 | Stock Service | Unknown | Event/poll limits, snapshot constraints, replay behavior, retry timing |
 | DHL | Unknown | Rate, concurrency, shipment/status endpoint limits, webhook behavior |
 | Auto POS | Unknown | Rate, concurrency, idempotency rules, timeout and retry behavior |
@@ -631,7 +976,7 @@ Initial seller-channel constraint until a certified contract proves otherwise:
 
 The quota scope must be confirmed during adapter certification: it may apply globally, per channel, seller account, credential, endpoint, or operation. Capacity cannot be multiplied across accounts until the platform contract confirms that behavior.
 
-At 100 requests/minute, theoretical capacity varies sharply with the effective batch size:
+At 100 requests/minute per channel, theoretical capacity varies sharply with the effective batch size. The 250/s order acceptance SLO is an aggregate across all channels (Shopee + Lazada + TikTok + Amaze), not a per-channel target. Individual channel throughput is governed by each platform's rate limit and batch size:
 
 | Effective batch size | Theoretical items/minute | Ideal time for 20,000 changed items |
 |---:|---:|---:|
@@ -654,8 +999,12 @@ If campaign headroom is below 1.5, the release gate fails. Remedies are changed-
 
 ### 9.2 Adapter runtime configuration
 
-- Run two adapter replicas per channel for availability and start with `maxReplicas: 3`, validated against the 250 orders/second burst test. Additional replicas may improve inbound webhook capacity but never increase the certified outbound API budget.
+- Run two adapter replicas per channel for availability across AZs. Additional replicas cannot increase the certified outbound API budget at this scale.
 - Use separate inbound, polling, and outbound worker pools within each adapter so webhook bursts, slow polling calls, and quota-constrained synchronization cannot starve one another.
+- Implement channel-specific OAuth authorization code flow: auth button redirect, callback URL with state/CSRF validation, auth_code exchange via the s1 TokenManager, and token persistence to the `channel_credentials` table and Redis cache.
+- Implement automatic access token refresh on 401 responses with concurrent refresh guard and refresh token rotation.
+- Monitor refresh token TTL and emit governance events when approaching the configurable expiry threshold (default 14 days) for Admin Portal operator notification.
+- Map platform-specific push event types (e.g., Shopee `ORDER_CREATED`, `ITEM_UPDATED`, `PRICE_CHANGED`) to canonical push types consumed by the o1c message classifier.
 - Enforce the combined quota across all replicas with an atomic distributed token bucket keyed by channel, account, credential, endpoint, and operation.
 - Dynamically configure batch size. Never assume the advertised maximum of 100 is accepted for every operation.
 - Coalesce pending stock, price, promotion, and product desired-state updates to the newest version. Never coalesce orders or legal status transitions.
@@ -709,7 +1058,7 @@ Platform requirements:
 - Pod anti-affinity and topology spread across all three AZs.
 - Pod disruption budgets and graceful Kafka partition revocation.
 - Horizontal scaling from CPU plus Kafka lag and request rate; scheduled pre-scaling before campaigns.
-- For seller adapters, use inbound request rate, CPU, latency, and error health for autoscaling and start with `minReplicas: 2`, `maxReplicas: 3`; do not scale from outbound Kafka lag alone.
+- For seller adapters, use inbound request rate, CPU, latency, and error health for autoscaling and start with `minReplicas: 2`, `maxReplicas: 2`; do not scale from outbound Kafka lag alone.
 - Resource requests/limits based on load tests; no unbounded Go goroutines or connection pools.
 - Autoscaling disabled from scaling below campaign minimums during protection windows.
 - GitOps deployment, immutable images, signed artifacts, and environment promotion.
@@ -757,7 +1106,12 @@ Use OpenTelemetry in every Go and Next.js service. Preserve `trace_id`, `correla
 
 ### 13.1 Golden signals
 
-- Adapter ingress: accepted/rejected webhook and poll rate, p50/p95/p99 latency, signature failures, cursor lag, Kafka produce errors, and worker-pool saturation.
+- Adapter ingress: accepted/rejected webhook and poll rate, p50/p95/p99 latency, signature failures, cursor lag, Kafka produce errors, worker-pool saturation, and push type classification distribution.
+- Webhook intake (o1a): Redis dedup hit rate, archival latency, Kafka produce latency, 202 response time.
+- Message classifier (o1c): classification rate, unknown-type rate, topic routing errors.
+- Detail enrichment (o1d): coalescing window fill rate, batch API call rate, enrichment latency, partial batch failure rate, per-item retry vs DLQ ratio.
+- Polling (o1b): lease acquisition latency, cursor age, backup safety-net coverage gap.
+- Token health: per-channel access token age, refresh token days-to-expiry, refresh failure rate, manual re-auth required count.
 - Kafka: bytes/s, records/s, under-replicated partitions, consumer lag age, hot partitions, rebalance time.
 - Orders: duplicate rate, lifecycle age, invalid transition, reservation latency and rejection reason.
 - Inventory: Redis operations/latency, Lua error, negative-floor attempt, ledger lag, reconciliation drift.
@@ -813,7 +1167,7 @@ Every cutover has one explicit writer. Feature flags are keyed by domain, channe
 | Integration | Kafka/Redis/PostgreSQL failure and retry behavior |
 | Partition lifecycle | OMS controller idempotency, three-month look-ahead, default-partition alerting, pruning, guarded archive, and restore |
 | Shadow | Phoenix output reconciles with legacy at agreed tolerance |
-| Load | Daily profile representing 50k orders/day, 250/s for 2 minutes, and 500/s for 2 minutes as burst headroom, with realistic line-item skew |
+ | Load | Daily profile representing 50k orders/day, 250/s aggregate across all channels for 2 minutes, and 500/s for 2 minutes as burst headroom, with realistic line-item skew |
 | Soak | 24-hour normal plus campaign ramp; no unbounded lag/memory/storage growth |
 | Chaos | Broker, AZ, Redis primary, PostgreSQL primary, adapter, and network failures |
 | DR | Regional failover and replay meet RPO/RTO |
@@ -823,7 +1177,8 @@ Every cutover has one explicit writer. Feature flags are keyed by domain, channe
 
 - No acknowledged order is lost.
 - Duplicate delivery produces one business outcome.
-- p99 acceptance and reservation SLOs are met.
+- p99 acceptance and webhook 202 response SLOs are met.
+- Redis dedup cache rejects duplicate push IDs with zero business impact.
 - Consumer lag returns to baseline within the agreed recovery window.
 - One-AZ loss retains Kafka/store quorum and at least 250/s acceptance or the agreed degraded capacity.
 - PostgreSQL and Redis remain below failover-safe saturation.
@@ -867,11 +1222,13 @@ Shared libraries provide mechanics, not domain behavior. Channel-specific mappin
 
 | Team | Owns |
 |---|---|
-| Order lifecycle | Post-Kafka canonical normalization and idempotency, reservation coordination, external hand-off, external status ingestion, sale capture |
+| Order lifecycle | Post-Kafka canonical normalization and idempotency (o2), reservation coordination, external hand-off, external status ingestion, sale capture |
+| Webhook/push infrastructure | Webhook intake (o1a), message classifier and router (o1c), polling cursor management and backup safety-net (o1b), detail enrichment orchestrator (o1d) |
 | Inventory | ATS, reservation, stock ledger, allocation |
-| Channel integration | Sync orchestration, adapters, quota scheduling, certification lab |
+| Channel integration | Sync orchestration, adapters, push type mapping, OAuth token management, listing read-back (p4), quota scheduling, certification lab |
+| Product sync | RMS ingestion (p1), channel listing cross-reference (p2), diff-based command generation (p3a), reconciliation (p3b), cross-reference engine (p4) |
 | Platform/SRE | Kubernetes, Kafka, Redis, PostgreSQL platform, CI/CD, telemetry, DR |
-| Operations product | Admin API/UI, campaign command center, exception workflows |
+| Operations product | Admin API/UI, campaign command center, exception workflows, token expiry dashboard |
 
 ## 17. Architecture decisions to lock before build
 
@@ -891,8 +1248,10 @@ Shared libraries provide mechanics, not domain behavior. Channel-specific mappin
 | Slice | Deliverable | Production gate |
 |---|---|---|
 | Foundation | Kubernetes, contracts, Kafka, telemetry, synthetic load generator | One-AZ test and event replay |
-| Price/promo pilot | R10 delta, sync ledger, Shopee/Lazada cells, campaign dashboard | Changed-SKU SLA and reconciliation |
+| Webhook intake pipeline | o1a (Redis dedup + Kafka quorum + 202), o1c (message classifier + router), o1b (polling cursor + backup safety-net), o1d (detail enrichment orchestrator) | 250/s aggregate acceptance with zero duplicate business outcomes |
+| Price/promo pilot | RMS/LDD delta, sync ledger, Shopee/Lazada cells, campaign dashboard | Changed-SKU SLA and reconciliation |
 | ATS core | Stock Service delta, Redis Lua, ledger, replay, read-only comparison | Deterministic recovery and no negative ATS |
+| Product sync | p4 channel listing pull, p2 RMS-vs-channel cross-reference, p3a diff-based command generation | Channel listing match status report with matched/missing/drifted counts |
 | Reservation | Order ingestion and reservation for one channel cohort | Idempotency and 250/s peak plus 500/s headroom benchmark |
 | OMS partition operations | Existing monthly schema, lookup refs, partition scheduler, archive and restore runbooks | Three-month horizon and partition-pruning verification |
 | Order hand-off | Existing fulfilment integration, capture sale, external status ingestion, seller status up-sync | End-to-end contract and state-machine certification |
@@ -933,7 +1292,7 @@ The cost bands below use public on-demand pricing pages and calculators as refer
 |---|---|---:|---:|---|
 | Kubernetes control plane | Managed control plane where available; self-managed only for special compliance cases | Provider-managed or 3 small control-plane nodes | 100-200 GiB system volume if self-managed | API server latency, node count, admission latency |
 | Stateless service worker pool | Start with 6 general-purpose workers across 3 AZs; minimum 2 workers/AZ during campaign windows; autoscale to 12 workers | 12 vCPU / 48 GiB baseline; 24 vCPU / 96 GiB burst | 100 GiB/node ephemeral/system disk | CPU >60%, memory >70%, Kafka lag age, ingress latency |
-| Channel adapters | 2 replicas per channel/cell; start `maxReplicas: 3`; separate inbound, polling, and outbound pools | 250-500 mCPU and 512 MiB-1 GiB per replica; 8-16 vCPU aggregate for all cells | Stateless; logs shipped externally | Inbound webhook rate, polling latency, CPU, error health; not outbound lag alone |
+| Channel adapters | 2 replicas per channel/cell; separate inbound, polling, and outbound pools | 250-500 mCPU and 512 MiB-1 GiB per replica; 8-16 vCPU aggregate for all cells | Stateless; logs shipped externally | Inbound webhook rate, polling latency, CPU, error health; not outbound lag alone |
 | Order lifecycle services | 2-3 replicas each for ingestion, process manager, hand-off, status, capture sale | 6-10 vCPU / 12-24 GiB aggregate | Stateless; PostgreSQL/Kafka hold state | p99 processing latency, consumer lag age, DB write queue |
 | Inventory and reservation services | 3 replicas each for reservation, ATS, allocation | 6-10 vCPU / 12-24 GiB aggregate | Stateless; Redis/PostgreSQL hold state | Redis Lua p99, reservation lag, hot store/SKU skew |
 | Product, price, promo, sync orchestrator | 2 replicas each; scheduled pre-scale for campaign ingestion | 8-16 vCPU / 16-32 GiB aggregate during campaign processing | Stateless; object storage for snapshots | Snapshot size, delta computation duration, campaign drain forecast |

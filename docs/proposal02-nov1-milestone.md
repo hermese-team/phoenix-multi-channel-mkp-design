@@ -94,7 +94,7 @@ The recommended scope is estimated at 490 MD, leaving only 20-47 MD of practical
 - Current production API contracts, quota scope, and batch limits are confirmed for all six channels by July 3. The planning fallback is 100 requests/minute with an unguaranteed maximum of 100 items/request.
 - Sandbox or test accounts and credentials are available by July 10.
 - Old .NET adapter source and relevant production configuration are readable by June 26.
-- Representative RMS, R10/LDD, and order payloads are available by June 26.
+- Representative RMS, RMS/LDD, and order payloads are available by June 26.
 - The existing fulfilment estate exposes a stable accepted-order hand-off contract by July 10.
 - Business owners approve canonical product, price, promotion, and order mappings by July 17.
 - Marketplace certification slots, where required, are booked no later than August 14.
@@ -131,7 +131,7 @@ This boundary is essential. Product update for mapped listings is achievable; co
 
 Included:
 
-- R10/LDD ingestion.
+- RMS/LDD ingestion.
 - Effective regular-price and promotion calculation.
 - Promotion start/end handling.
 - Auto/Manual and override rules.
@@ -194,7 +194,7 @@ This is an operational dashboard, not BI or management reporting.
 flowchart LR
     subgraph Sources["Enterprise sources"]
         RMS["RMS product"]
-        R10["R10 price and promotion"]
+        R10["RMS/LDD price and promotion"]
     end
 
     subgraph Phoenix["Phoenix November MVP"]
@@ -495,7 +495,7 @@ Scope additions after July 3 require an equal or larger removal. The protected e
 | New engineers take longer to become productive | Wave 3 slips | Pair on adapters; keep domain core with existing team; protect contingency |
 | QA becomes the bottleneck | Late integration defects | Contract simulators and reconciliation automation begin in July |
 | Marketplace credentials or certification arrive late | A channel cannot go live | Date-based conditional commits and shadow fallback |
-| R10/RMS source data is late or unstable | Phoenix misses end-to-end SLA | Measure source delay separately; archive source payload and reconcile |
+| RMS/LDD source data is late or unstable | Phoenix misses end-to-end SLA | Measure source delay separately; archive source payload and reconcile |
 | 100 requests/minute or smaller-than-expected bulk sizes cannot clear campaign changes | Midnight SLA missed | 80/20 quota budget, delta-only commands, dynamic batching, drain-time forecast, campaign priority, pre-stage, and quota negotiation |
 | Order migration while legacy owns stock creates inconsistent expectations | Overselling remains | Declare stock out of scope; preserve legacy stock writer and reconcile order effects |
 | Parallel writers create duplicate updates | Incorrect external state | Cohort-level writer lock and kill switch; no dual ownership |
@@ -569,7 +569,7 @@ Indicative effort: 200-240 MD
 1. Secure sponsor approval for the narrow definitions of product and order sync by June 26.
 2. Confirm whether the staffing model is four current engineers plus two joining July 22, with QA and Tech Lead separate.
 3. Run a five-day .NET adapter and API readiness audit for all six channels.
-4. Name one business owner and one technical dependency owner for RMS, R10, fulfilment, and each channel.
+4. Name one business owner and one technical dependency owner for RMS (product), RMS/LDD (pricing), fulfilment, and each channel.
 5. Lock the canonical contracts and test fixtures before channel implementations diverge.
 6. Approve Option B now as the automatic fallback for any secondary channel that misses a readiness gate.
 7. Book marketplace certification and UAT windows immediately.

@@ -2,7 +2,7 @@
 
 **Sprint:** 2026-09-21 to 2026-10-02 (10 working days)  
 **Team:** 9 Developers + 6 QA + TL  
-**Theme:** Formal SIT completion, load/stress testing (250/500 ops/sec), resilience testing start, production readiness prep
+**Theme:** Formal SIT completion, load/stress testing (250/500 aggregate ops/sec across all channels), resilience testing start, production readiness prep
 
 ---
 
@@ -43,27 +43,27 @@
 
 ---
 
-## Story 7.2: Load Testing — 250 orders/sec Baseline
+## Story 7.2: Load Testing — 250 orders/sec Aggregate Baseline
 
 **Gantt Code:** t2  
-**Narrative:** As the **Performance SDET**, I want to execute the 250 orders/sec baseline load test for 2 minutes, so that order acceptance meets the p99 ≤ 250ms SLO and zero orders are lost.  
+**Narrative:** As the **Performance SDET**, I want to execute the 250 orders/sec aggregate baseline load test across all channel simulators for 2 minutes, so that order acceptance meets the p99 ≤ 250ms SLO and zero orders are lost.  
 **Story Points:** 4
 
 ### Acceptance Criteria
-**Scenario 1:** Given the load harness generates 250 orders/sec for 2 minutes, when the system processes them, then p99 latency should be ≤ 250ms for order acceptance and zero orders should be lost.  
-**Scenario 2:** Given the load test completes, when metrics are collected, then the throughput should be exactly 30,000 orders accepted, and p99, p95, and p50 latencies should be reported.
+**Scenario 1:** Given the load harness generates 250 orders/sec aggregate across all channel simulators (Shopee+Lazada+TikTok+Amaze) for 2 minutes, when the system processes them, then p99 latency should be ≤ 250ms for order acceptance and zero orders should be lost.  
+**Scenario 2:** Given the load test completes, when metrics are collected, then the throughput should be exactly 30,000 orders accepted aggregate, and per-channel and total p99, p95, and p50 latencies should be reported.
 
 ---
 
-## Story 7.3: Load Testing — 500 ops/sec Burst Headroom
+## Story 7.3: Load Testing — 500 ops/sec Aggregate Burst Headroom
 
 **Gantt Code:** t2  
-**Narrative:** As the **Performance SDET**, I want to execute the 500 orders/sec burst test for 2 minutes with concurrent price/promo and stock bursts, so that the system handles 2x peak load without degradation.  
+**Narrative:** As the **Performance SDET**, I want to execute the 500 orders/sec aggregate burst test across all channel simulators for 2 minutes with concurrent price/promo and stock bursts, so that the system handles 2x peak aggregate load without degradation.  
 **Story Points:** 4
 
 ### Acceptance Criteria
-**Scenario 1:** Given the load harness generates 500 orders/sec for 2 minutes (2x peak), when processed, then all 60,000 orders should be accepted and no component should crash or exhaust memory.  
-**Scenario 2:** Given a 500 ops/sec scenario with concurrent price updates for 500 SKUs and 1000 stock movements, when processed, then all price and stock updates should complete within their SLOs.  
+**Scenario 1:** Given the load harness generates 500 orders/sec aggregate (distributed across channels respecting per-channel quotas) for 2 minutes (2x peak), when processed, then all 60,000 orders should be accepted and no component should crash or exhaust memory.  
+**Scenario 2:** Given a 500 ops/sec aggregate scenario with concurrent price updates for 500 SKUs and 1000 stock movements, when processed, then all price and stock updates should complete within their per-channel SLOs respecting each platform's rate limits.  
 **Scenario 3:** Given the load test completes, when resources are inspected, then CPU, memory, and Kafka lag should all be within acceptable thresholds.
 
 ---
@@ -121,8 +121,8 @@
 | Story | Gantt Code | Dev Owner | QA Owner | SP | Target |
 |-------|-----------|-----------|----------|:---:|--------|
 | 7.1 SIT Completion — Full Regression | t1 | QA-01 | QA-01 | 5 | Sep 28 |
-| 7.2 Load Testing — 250 ops/sec Baseline | t2 | QA-05 | QA-05 | 4 | Sep 25 |
-| 7.3 Load Testing — 500 ops/sec Burst | t2 | QA-05 | QA-05 | 4 | Sep 30 |
+| 7.2 Load Testing — 250 ops/sec Aggregate Baseline | t2 | QA-05 | QA-05 | 4 | Sep 25 |
+| 7.3 Load Testing — 500 ops/sec Aggregate Burst | t2 | QA-05 | QA-05 | 4 | Sep 30 |
 | 7.4 Resilience — Pod & Broker Failure | t3 | QA-05 | QA-05 | 3 | Sep 28 |
 | 7.5 Resilience — API Outage & Retry Storm | t3 | QA-05 | QA-05 | 3 | Oct 01 |
 | 7.6 Production Readiness — Secrets & Runbooks | t6 | DEV-01 | QA-01 | 3 | Sep 28 |

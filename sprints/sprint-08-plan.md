@@ -62,7 +62,7 @@
 
 ### Acceptance Criteria
 **Scenario 1:** Given Phoenix and legacy both process the same RMS product feed for 24 hours, when the parallel run compares outputs, then Phoenix product updates should match or improve upon legacy outcomes.  
-**Scenario 2:** Given Phoenix and legacy both process the same R10/LDD price feed, when compared, then effective prices on channels should match within acceptable tolerance.
+**Scenario 2:** Given Phoenix and legacy both process the same RMS/LDD price feed, when compared, then effective prices on channels should match within acceptable tolerance.
 
 ---
 
