@@ -507,7 +507,7 @@ Breakdowns:
 
 **o1c — Webhook message classifier and router**
 - Message type classifier: inspect incoming push for type indicator (topic header or payload field); map to canonical domain event type (2 md)
-- Topic router: publish classified messages to correct domain Kafka topic (order.ingest.<channel>.v1, product.notification.v1, price.notification.v1) (1 md)
+- Topic router: publish classified messages to correct domain Kafka topic (order.ingest.<channel>.v1.dev, product.ingest.<channel>.v1.dev, price.ingest.<channel>.v1.dev) (1 md)
 - **Total: 3 md**
 
 **o1d — Detail enrichment orchestrator**

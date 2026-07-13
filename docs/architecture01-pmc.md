@@ -288,18 +288,18 @@ sequenceDiagram
     Note over A,C: Webhook response returned immediately after Kafka quorum (no business processing yet)
     K->>Cl: Consume raw push notification
     Cl->>Cl: Classify message type (ORDER_CREATED, PRODUCT_UPDATED, PRICE_CHANGED)
-    Cl->>K: Publish to order.ingest.<channel>.v1
+    Cl->>K: Publish to order.ingest.<channel>.v1.dev
 
-    K->>E: Consume lightweight order notification from order.ingest.<channel>.v1
+    K->>E: Consume lightweight order notification from order.ingest.<channel>.v1.dev
     E->>E: Coalesce same-type notifications within time window
     E->>E: Invoke rate-limited bulk GetOrderDetail API via r3 scheduler
     E-->>E: Partial batch failure → retry individually, DLQ permanent failures
-    E->>K: Publish enriched canonical order to order.enriched.v1
+    E->>K: Publish enriched canonical order to order.enriched.v1.dev
 
-    K->>O: Consume enriched order from order.enriched.v1
+    K->>O: Consume enriched order from order.enriched.v1.dev
     O->>O: Normalize + idempotency check (PostgreSQL-based)
     O->>P: Persist to partitioned orders table
-    O->>K: order.received.v1
+    O->>K: order.received.v1.dev
     K->>P: Micro-batched authoritative projections
 ```
 
@@ -350,16 +350,16 @@ sequenceDiagram
 
     K->>Cl: Consume raw order
     Cl->>Cl: Classify as ORDER_CREATED
-    Cl->>K: Publish to order.ingest.<channel>.v1
+    Cl->>K: Publish to order.ingest.<channel>.v1.dev
 
-    K->>E: Consume from order.ingest.<channel>.v1
+    K->>E: Consume from order.ingest.<channel>.v1.dev
     E->>E: Coalesce + rate-limited bulk GetOrderDetail
-    E->>K: Publish enriched order to order.enriched.v1
+    E->>K: Publish enriched order to order.enriched.v1.dev
 
-    K->>O: Consume from order.enriched.v1
+    K->>O: Consume from order.enriched.v1.dev
     O->>O: Normalize + idempotency check
     O->>P: Persist to partitioned orders table
-    O->>K: order.received.v1
+    O->>K: order.received.v1.dev
 
     Note over B,A: Backup safety-net (every 15 min per channel)
 
@@ -574,7 +574,7 @@ sequenceDiagram
 
 ### 5.6 Fulfilment routing and dispatch
 
-After canonical order ingestion (o2) publishes to `order.received.v1`, the fulfilment pipeline assigns each order line to a warehouse, splits multi-warehouse orders into logical fulfilment units, prioritises by type and SLA deadline, and dispatches to the correct fulfilment system within its rate capacity.
+After canonical order ingestion (o2) publishes to `order.received.v1.dev`, the fulfilment pipeline assigns each order line to a warehouse, splits multi-warehouse orders into logical fulfilment units, prioritises by type and SLA deadline, and dispatches to the correct fulfilment system within its rate capacity.
 
 ```mermaid
 sequenceDiagram
@@ -590,9 +590,9 @@ sequenceDiagram
     participant MFC as MFC API
     participant LEG as Legacy MKP API
 
-    O->>K: order.received.v1
+    O->>K: order.received.v1.dev
 
-    K->>FR: Consume order from order.received.v1
+    K->>FR: Consume order from order.received.v1.dev
     FR->>FR: For each line: determine warehouse_code
     alt line has explicit warehouse_code (MFC/DC1/DC2)
         FR->>FR: Use direct code
@@ -771,21 +771,26 @@ Retries have a maximum age and attempt budget. A retry storm must not outrank ne
 
 Use versioned topics and separate traffic classes:
 
-- `order.raw.accepted.v1` — immutable seller payload reference and adapter-validated transport envelope; canonical normalization occurs in order ingestion.
-- `order.ingest.<channel>.v1` — classified order push notifications per channel, consumed by the channel-specific detail enrichment (o1d) for rate-limited GetOrderDetail.
-- `order.enriched.v1` — enriched canonical order payloads (after o1d), consumed by order ingestion (o2).
-- `product.notification.v1` — classified product change push notifications (product.updated, listing.changed) from seller platforms via o1c.
-- `price.notification.v1` — classified price change push notifications (price.changed) from seller platforms via o1c.
+- `raw.accepted.<channel>.v1.dev` — per-channel durable ingress for adapter-validated raw seller payloads (orders, products, prices, status); archived immediately after Kafka quorum.
+- `order.ingest.<channel>.v1.dev` — classified order push notifications per channel, consumed by the channel-specific detail enrichment (o1d) for rate-limited GetOrderDetail.
+- `order.enriched.v1.dev` — enriched canonical order payloads (after o1d), consumed by order ingestion (o2).
+- `order.received.v1.dev` — confirms canonical order has been persisted to PostgreSQL, consumed by fulfilment routing and lifecycle tracking.
+- `product.ingest.<channel>.v1.dev` — classified product change push notifications (product.updated, listing.changed) from seller platforms via o1c.
+- `price.ingest.<channel>.v1.dev` — classified price change push notifications (price.changed) from seller platforms via o1c.
+- `product.enriched.v1.dev` — enriched product payloads after channel-specific detail pull.
+- `price.enriched.v1.dev` — enriched price payloads after channel-specific detail pull.
 - `channel.listing.v1` — channel listing pull results (initial and periodic) for cross-referencing against RMS master.
-- `order.lifecycle.v1` — canonical order transitions.
+- `order.lifecycle.v1.dev` — canonical order transitions.
 - `inventory.movement.v1` and `inventory.reservation.v1` — stock-affecting commands.
 - `inventory.ats.v1` and `allocation.changed.v1` — calculated state.
-- `stock.sync.<channel>.v1`, `price.promo.sync.<channel>.v1`, `order.status.sync.<channel>.v1` — channel-isolated delivery.
+- `stock.sync.<channel>.v1`, `price.promo.sync.<channel>.v1.dev`, `order.status.sync.<channel>.v1.dev` — channel-isolated delivery.
 - `sync.result.v1` — normalized external results.
 - `fulfilment.unit.<warehouse>.v1` — warehouse-assigned fulfilment units after routing; one topic per warehouse (e.g., `fulfilment.unit.mfc.v1`, `fulfilment.unit.dc1.v1`) with independent consumer groups.
 - `fulfilment.dispatch.v1` — dispatch result events (accepted, retry, permanent failure).
 - `fulfilment.unit.dlq.v1` — permanently failed fulfilment units requiring operator intervention.
-- Domain-specific `.retry.<delay>.v1` and `.dlq.v1` topics.
+- `order.retry.v1.dev` and `order.dlq.v1.dev` — order domain retry and dead-letter queues.
+- `price.retry.v1.dev` and `price.dlq.v1.dev` — price domain retry and dead-letter queues.
+- `product.retry.v1.dev` and `product.dlq.v1.dev` — product domain retry and dead-letter queues.
 
 ### 7.2 Initial production envelope
 

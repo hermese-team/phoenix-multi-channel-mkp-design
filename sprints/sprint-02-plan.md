@@ -221,7 +221,7 @@
 
 ### Acceptance Criteria
 **Scenario 1:** Given an incoming push payload (order webhook, product update notification, or price change event), when the intake pipeline receives it, then the raw payload should be stored in MinIO/S3 with a content-addressable reference and the Kafka event should contain the storage URI.  
-**Scenario 2:** Given a valid push payload published to the correct domain topic (`order.ingest.<channel>.v1`, `product.notification.v1`, or `price.notification.v1`), when Kafka producer receives ISR acknowledgement, then the payload should be considered accepted and return HTTP 202.  
+**Scenario 2:** Given a valid push payload published to the correct domain topic (`order.ingest.<channel>.v1.dev`, `product.ingest.<channel>.v1.dev`, or `price.ingest.<channel>.v1.dev`), when Kafka producer receives ISR acknowledgement, then the payload should be considered accepted and return HTTP 202.  
 **Scenario 3:** Given an incoming push with a duplicate `push_id` already processed within the TTL window (e.g., 5 minutes), when the Redis fast-path dedup check runs, then it should return HTTP 200 (OK, already processed) without archival or Kafka publish.
 
 ---
@@ -233,7 +233,7 @@
 **Story Points:** 3
 
 ### Acceptance Criteria
-**Scenario 1:** Given an incoming push payload from Shopee with topic header `order.created`, when the classifier inspects it, then it should map to canonical event type `ORDER_CREATED` and publish to `order.ingest.shopee.v1`. Given a payload with `product.updated`, it should map to `PRODUCT_UPDATED` and publish to `product.notification.v1`.  
+**Scenario 1:** Given an incoming push payload from Shopee with topic header `order.created`, when the classifier inspects it, then it should map to canonical event type `ORDER_CREATED` and publish to `order.ingest.shopee.v1.dev`. Given a payload with `product.updated`, it should map to `PRODUCT_UPDATED` and publish to `product.ingest.shopee.v1.dev`.  
 **Scenario 2:** Given an unknown or unmappable push type, when the classifier receives it, then it should route to a dead-letter topic with `UNKNOWN_PUSH_TYPE` and emit a governance event.
 
 ---
