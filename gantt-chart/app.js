@@ -497,10 +497,10 @@ function renderGantt() {
     // progress: any blocked -> amber border, fill colored by aggregate progress.
     if (isSectionCollapsed && groupBounds && groupBounds.durationDays > 0) {
       const groupBlocked = filteredSectionTasks.some(t => isTaskBlocked(t.id));
-      const aggExpected = totalEffort > 0
-        ? Math.round(sectionNonMilestone.reduce((sum, t) => sum + (t.effort || t.duration) * getExpectedProgress(t) / 100, 0) / totalEffort * 100)
-        : 0;
-      const fillClass = getProgressFillClass(sectionAggProgress, aggExpected);
+      // Compare fill position against the today line within this section's span
+      const todayPosInBar = Math.max(0, Math.min(100,
+        ((todayOffset - groupBounds.startDay) / groupBounds.durationDays) * 100));
+      const fillClass = getProgressFillClass(sectionAggProgress, todayPosInBar);
 
       const rollup = document.createElement('div');
       rollup.className = 'task-bar-wrapper';
@@ -509,7 +509,7 @@ function renderGantt() {
 
       const bar = document.createElement('div');
       bar.className = `task-bar ${groupBlocked ? 'task-bar-blocked' : ''}`;
-      bar.title = `${sectionName} | ${sectionAggProgress}% complete | Expected: ${aggExpected}% | ${groupBounds.startStr} to ${groupBounds.finishStr}`;
+      bar.title = `${sectionName} | ${sectionAggProgress}% complete | ${groupBounds.startStr} to ${groupBounds.finishStr}`;
 
       const fill = document.createElement('div');
       fill.className = `task-bar-fill ${fillClass}`;
