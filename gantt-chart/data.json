@@ -16,7 +16,15 @@
     ],
     "qaOwner": "QA-01",
     "predecessors": [],
-    "rationale": "Confirm scope, excluded features, decision owners, escalation paths, sprint cadence, release gates, and fallback rules."
+    "rationale": "Confirm scope, excluded features, decision owners, escalation paths, sprint cadence, release gates, and fallback rules.",
+    "owners": [
+      "TL",
+      "QA-01",
+      "Product Owner",
+      "Release Manager"
+    ],
+    "duration": 5,
+    "note": ""
   },
   {
     "id": "m2",
@@ -36,7 +44,17 @@
     ],
     "qaOwner": "QA-01",
     "predecessors": [],
-    "rationale": "Translate approved architecture into ADRs, service boundaries, topic/schema conventions, sizing assumptions, NFR test targets, operational responsibilities, and workstream-ready acceptance criteria."
+    "rationale": "Translate approved architecture into ADRs, service boundaries, topic/schema conventions, sizing assumptions, NFR test targets, operational responsibilities, and workstream-ready acceptance criteria.",
+    "owners": [
+      "TL",
+      "DEV-01",
+      "DEV-02",
+      "DEV-03",
+      "QA-05",
+      "QA-01"
+    ],
+    "duration": 12,
+    "note": ""
   },
   {
     "id": "m3",
@@ -56,7 +74,17 @@
     ],
     "qaOwner": "QA-02",
     "predecessors": [],
-    "rationale": "Confirm owners, quotas, payload samples, replay behavior, maintenance windows, error codes, and test endpoints for RMS, R10/LDD, Stock Service, and WMS/MFC."
+    "rationale": "Confirm owners, quotas, payload samples, replay behavior, maintenance windows, error codes, and test endpoints for RMS, R10/LDD, Stock Service, and WMS/MFC.",
+    "owners": [
+      "TL",
+      "DEV-05",
+      "DEV-06",
+      "DEV-08",
+      "DEV-09",
+      "QA-02"
+    ],
+    "duration": 26,
+    "note": ""
   },
   {
     "id": "m4",
@@ -80,7 +108,18 @@
       "m1",
       "m2"
     ],
-    "rationale": "Stabilize product, price, stock, order, fulfilment, and adapter result contracts before parallel build teams diverge.\n- Define canonical domain schemas and Avro/Protobuf compatibility rules across all domains (4 md)\n- Design error taxonomy, reason codes, and idempotency key strategy (3 md)\n- Create canonical test fixtures: success, boundary, error, replay scenarios per domain (3 md)\n- **Total: 10 md**"
+    "rationale": "Stabilize product, price, stock, order, fulfilment, and adapter result contracts before parallel build teams diverge.\n- Define canonical domain schemas and Avro/Protobuf compatibility rules across all domains (4 md)\n- Design error taxonomy, reason codes, and idempotency key strategy (3 md)\n- Create canonical test fixtures: success, boundary, error, replay scenarios per domain (3 md)\n- **Total: 10 md**",
+    "owners": [
+      "DEV-03",
+      "TL",
+      "DEV-05",
+      "DEV-06",
+      "DEV-07",
+      "DEV-09",
+      "QA-02"
+    ],
+    "duration": 33,
+    "note": ""
   },
   {
     "id": "f1",
@@ -97,7 +136,14 @@
     ],
     "qaOwner": "QA-05",
     "predecessors": [],
-    "rationale": "Kubernetes, CI/CD, GitOps environments to support many parallel services.\n- Service templates, namespace/env setup, secrets management (3 md)\n- Container build, deployment manifests, GitOps pipeline (3 md)\n- Progressive delivery, rollback hooks, resource limits, topology spread (3 md)\n- Environment promotion across dev/staging/prod (2 md)\n- **Total: 11 md**"
+    "rationale": "Kubernetes, CI/CD, GitOps environments to support many parallel services.\n- Service templates, namespace/env setup, secrets management (3 md)\n- Container build, deployment manifests, GitOps pipeline (3 md)\n- Progressive delivery, rollback hooks, resource limits, topology spread (3 md)\n- Environment promotion across dev/staging/prod (2 md)\n- **Total: 11 md**",
+    "owners": [
+      "DEV-01",
+      "DEV-02",
+      "QA-05"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "f2",
@@ -118,7 +164,15 @@
       "f1",
       "m4"
     ],
-    "rationale": "Kafka, schema registry, retry/DLQ topics. Correct partitioning critical for orders and stock.\n- Broker configuration, topic naming, partition strategy per domain (3 md)\n- Schema registry: Avro/Protobuf contracts, compatibility checks (2 md)\n- Retry topic topology (immediate/deferred/DLQ); producer/consumer conventions (3 md)\n- Operational dashboards: Kafka health, lag, partition balance (2 md)\n- **Total: 10 md**"
+    "rationale": "Kafka, schema registry, retry/DLQ topics. Correct partitioning critical for orders and stock.\n- Broker configuration, topic naming, partition strategy per domain (3 md)\n- Schema registry: Avro/Protobuf contracts, compatibility checks (2 md)\n- Retry topic topology (immediate/deferred/DLQ); producer/consumer conventions (3 md)\n- Operational dashboards: Kafka health, lag, partition balance (2 md)\n- **Total: 10 md**",
+    "owners": [
+      "DEV-02",
+      "DEV-03",
+      "DEV-01",
+      "QA-02"
+    ],
+    "duration": 35,
+    "note": ""
   },
   {
     "id": "f3",
@@ -139,7 +193,16 @@
     "predecessors": [
       "m4"
     ],
-    "rationale": "PostgreSQL schemas, partitions, ledgers for all domains.\n- Domain schemas: order partitions, stock ledger, sync ledger, idempotency tables (3 md)\n- Audit tables, indexes, archive/retention strategy (2 md)\n- Migration scripts, connection budgets, read/query constraints for ops screens (3 md)\n- **Total: 8 md**"
+    "rationale": "PostgreSQL schemas, partitions, ledgers for all domains.\n- Domain schemas: order partitions, stock ledger, sync ledger, idempotency tables (3 md)\n- Audit tables, indexes, archive/retention strategy (2 md)\n- Migration scripts, connection budgets, read/query constraints for ops screens (3 md)\n- **Total: 8 md**",
+    "owners": [
+      "DEV-02",
+      "DEV-03",
+      "DEV-07",
+      "DEV-09",
+      "QA-02"
+    ],
+    "duration": 33,
+    "note": ""
   },
   {
     "id": "f4",
@@ -160,7 +223,15 @@
       "f1",
       "m2"
     ],
-    "rationale": "Redis for distributed rate limiting. Produces token-bucket infrastructure and reusable Lua building blocks. ATS calculation logic belongs to i2.\n- Redis key design for distributed token buckets (2 md)\n- Lua scripts for atomic quota consumption/refill; failover behavior testing (3 md)\n- Test fixtures for rate-limit, token-bucket edge cases, 429 backpressure (2 md)\n- **Total: 7 md**"
+    "rationale": "Redis for distributed rate limiting. Produces token-bucket infrastructure and reusable Lua building blocks. ATS calculation logic belongs to i2.\n- Redis key design for distributed token buckets (2 md)\n- Lua scripts for atomic quota consumption/refill; failover behavior testing (3 md)\n- Test fixtures for rate-limit, token-bucket edge cases, 429 backpressure (2 md)\n- **Total: 7 md**",
+    "owners": [
+      "DEV-09",
+      "DEV-01",
+      "DEV-10",
+      "QA-05"
+    ],
+    "duration": 33,
+    "note": ""
   },
   {
     "id": "f5",
@@ -188,7 +259,23 @@
     "predecessors": [
       "f1"
     ],
-    "rationale": "Platform observability layer. Consumed by a5 (Admin Portal telemetry views). Starts early, completes after domain services emit real signals.\n- Log/metric/trace pipeline: OpenTelemetry collectors, exporters (3 md)\n- Operational dashboards: queue age, platform wait, source delay, retry/DLQ counts (3 md)\n- Alerting rules with SLO burn-rate alerts; channel health monitoring (3 md)\n- Audit trail infrastructure: immutable event stream for operator actions (2 md)\n- **Total: 11 md**"
+    "rationale": "Platform observability layer. Consumed by a5 (Admin Portal telemetry views). Starts early, completes after domain services emit real signals.\n- Log/metric/trace pipeline: OpenTelemetry collectors, exporters (3 md)\n- Operational dashboards: queue age, platform wait, source delay, retry/DLQ counts (3 md)\n- Alerting rules with SLO burn-rate alerts; channel health monitoring (3 md)\n- Audit trail infrastructure: immutable event stream for operator actions (2 md)\n- **Total: 11 md**",
+    "owners": [
+      "DEV-01",
+      "DEV-02",
+      "DEV-04",
+      "DEV-05",
+      "DEV-06",
+      "DEV-07",
+      "DEV-08",
+      "DEV-09",
+      "DEV-10",
+      "DEV-11",
+      "DEV-12",
+      "QA-01"
+    ],
+    "duration": 64,
+    "note": ""
   },
   {
     "id": "f6",
@@ -210,7 +297,15 @@
       "m4",
       "f1"
     ],
-    "rationale": "Load/stress test harness for 250/500 ops/sec validation.\n- Synthetic order/price/stock event generators for load scenarios (3 md)\n- Configurable channel API simulators for quota/failure injection (3 md)\n- Measurement scripts: repeatable 250/500 ops/sec scenario definitions (2 md)\n- **Total: 8 md**"
+    "rationale": "Load/stress test harness for 250/500 ops/sec validation.\n- Synthetic order/price/stock event generators for load scenarios (3 md)\n- Configurable channel API simulators for quota/failure injection (3 md)\n- Measurement scripts: repeatable 250/500 ops/sec scenario definitions (2 md)\n- **Total: 8 md**",
+    "owners": [
+      "QA-05",
+      "DEV-01",
+      "DEV-02",
+      "DEV-04"
+    ],
+    "duration": 33,
+    "note": ""
   },
   {
     "id": "s1",
@@ -233,7 +328,16 @@
       "f4",
       "f2"
     ],
-    "rationale": "Shared adapter SDK standardizing external call mechanics across all channels.\n- Auth hooks, request signing extension points for all channel adapters (3 md)\n- Idempotency/request keys, retry taxonomy (immediate/deferred/permanent), 429 handling (3 md)\n- Distributed quota integration with f4; circuit breaker per endpoint (3 md)\n- Metrics, traces, and result publishing via Kafka (1 md)\n- **Total: 10 md**"
+    "rationale": "Shared adapter SDK standardizing external call mechanics across all channels.\n- Auth hooks, request signing extension points for all channel adapters (3 md)\n- Idempotency/request keys, retry taxonomy (immediate/deferred/permanent), 429 handling (3 md)\n- Distributed quota integration with f4; circuit breaker per endpoint (3 md)\n- Metrics, traces, and result publishing via Kafka (1 md)\n- **Total: 10 md**",
+    "owners": [
+      "DEV-04",
+      "DEV-11",
+      "DEV-12",
+      "DEV-01",
+      "QA-02"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "s2",
@@ -253,7 +357,15 @@
     "predecessors": [
       "s1"
     ],
-    "rationale": "Capability registry and feature flags for safe configuration across channels.\n- Endpoint capability model: per-channel, per-operation field support matrix (3 md)\n- Quota and batch-size configuration store (runtime-editable, feeds r3) (2 md)\n- Writer ownership model: domain/channel/cohort scope with kill switches (3 md)\n- Staged rollout by channel/account/SKU cohort; certification evidence tracking (2 md)\n- **Total: 10 md**"
+    "rationale": "Capability registry and feature flags for safe configuration across channels.\n- Endpoint capability model: per-channel, per-operation field support matrix (3 md)\n- Quota and batch-size configuration store (runtime-editable, feeds r3) (2 md)\n- Writer ownership model: domain/channel/cohort scope with kill switches (3 md)\n- Staged rollout by channel/account/SKU cohort; certification evidence tracking (2 md)\n- **Total: 10 md**",
+    "owners": [
+      "DEV-04",
+      "DEV-03",
+      "DEV-01",
+      "QA-02"
+    ],
+    "duration": 33,
+    "note": ""
   },
   {
     "id": "s3",
@@ -275,7 +387,16 @@
     "predecessors": [
       "m3"
     ],
-    "rationale": "Channel API contract simulators for QA/dev testing before sandboxes are stable.\n- Shopee/Lazada API simulators: success, retry, rate-limit, failure responses (3 md)\n- TikTok/Amaze/AxtraMall API simulators (3 md)\n- Out-of-order, duplicate, malformed payload scenario simulators (2 md)\n- **Total: 8 md**"
+    "rationale": "Channel API contract simulators for QA/dev testing before sandboxes are stable.\n- Shopee/Lazada API simulators: success, retry, rate-limit, failure responses (3 md)\n- TikTok/Amaze/AxtraMall API simulators (3 md)\n- Out-of-order, duplicate, malformed payload scenario simulators (2 md)\n- **Total: 8 md**",
+    "owners": [
+      "QA-02",
+      "DEV-03",
+      "DEV-04",
+      "DEV-11",
+      "DEV-12"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "r3",
@@ -299,7 +420,17 @@
       "m3",
       "s2"
     ],
-    "rationale": "Shared quota-aware scheduler and drain forecast (moved from Price section). All domains depend on this.\n- Per-channel/account/endpoint quota scheduling engine consuming f4 token buckets (3 md)\n- 80/20 normal-vs-urgent budget, dynamic batch sizing, retry budget (2 md)\n- Campaign drain estimation: effective items/minute, deadline risk, 429 storm safety (2 md)\n- **Total: 7 md**"
+    "rationale": "Shared quota-aware scheduler and drain forecast (moved from Price section). All domains depend on this.\n- Per-channel/account/endpoint quota scheduling engine consuming f4 token buckets (3 md)\n- 80/20 normal-vs-urgent budget, dynamic batch sizing, retry budget (2 md)\n- Campaign drain estimation: effective items/minute, deadline risk, 429 storm safety (2 md)\n- **Total: 7 md**",
+    "owners": [
+      "DEV-06",
+      "DEV-04",
+      "DEV-09",
+      "DEV-10",
+      "DEV-01",
+      "QA-05"
+    ],
+    "duration": 47,
+    "note": ""
   },
   {
     "id": "p1",
@@ -319,7 +450,15 @@
     "predecessors": [
       "m3"
     ],
-    "rationale": "RMS ingestion and product delta engine.\n- RMS snapshot/change ingestion: payload references, version comparison, replay (3 md)\n- Deterministic insert/update/deactivate/unchanged decisions; stale source handling (2 md)\n- Source delay measurement; integration with p2 desired-state ledger (1 md)\n- **Total: 6 md**"
+    "rationale": "RMS ingestion and product delta engine.\n- RMS snapshot/change ingestion: payload references, version comparison, replay (3 md)\n- Deterministic insert/update/deactivate/unchanged decisions; stale source handling (2 md)\n- Source delay measurement; integration with p2 desired-state ledger (1 md)\n- **Total: 6 md**",
+    "owners": [
+      "DEV-05",
+      "DEV-03",
+      "DEV-02",
+      "QA-03"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "p2",
@@ -339,7 +478,15 @@
     "predecessors": [
       "m3"
     ],
-    "rationale": "Mapping, validation, desired-state ledger.\n- SKU/PLU to channel listing ID resolution engine; eligibility validation (3 md)\n- Handling inactive, unmapped, ambiguous items with stable reason codes (2 md)\n- Desired-state persistence: version, payload hash, priority, reconciliation keys (3 md)\n- **Total: 8 md**"
+    "rationale": "Mapping, validation, desired-state ledger.\n- SKU/PLU to channel listing ID resolution engine; eligibility validation (3 md)\n- Handling inactive, unmapped, ambiguous items with stable reason codes (2 md)\n- Desired-state persistence: version, payload hash, priority, reconciliation keys (3 md)\n- **Total: 8 md**",
+    "owners": [
+      "DEV-05",
+      "DEV-03",
+      "DEV-11",
+      "QA-03"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "p3a",
@@ -363,7 +510,16 @@
       "c2",
       "c3"
     ],
-    "rationale": "Product outbound command generation.\n- Transform desired-state to channel-neutral commands; coalesce obsolete pending (2 md)\n- Integrate with s1 SDK for outbound dispatch; result classification (3 md)\n- **Total: 5 md**"
+    "rationale": "Product outbound command generation.\n- Transform desired-state to channel-neutral commands; coalesce obsolete pending (2 md)\n- Integrate with s1 SDK for outbound dispatch; result classification (3 md)\n- **Total: 5 md**",
+    "owners": [
+      "DEV-05",
+      "DEV-04",
+      "DEV-11",
+      "DEV-12",
+      "QA-03"
+    ],
+    "duration": 18,
+    "note": ""
   },
   {
     "id": "p3b",
@@ -383,7 +539,15 @@
     "predecessors": [
       "p3a"
     ],
-    "rationale": "Product reconciliation and drill-down.\n- Desired-vs-sent-vs-acknowledged state comparison per SKU/channel (2 md)\n- Read-back integration where available; operator drill-down views (1 md)\n- **Total: 3 md**"
+    "rationale": "Product reconciliation and drill-down.\n- Desired-vs-sent-vs-acknowledged state comparison per SKU/channel (2 md)\n- Read-back integration where available; operator drill-down views (1 md)\n- **Total: 3 md**",
+    "owners": [
+      "DEV-05",
+      "DEV-11",
+      "DEV-12",
+      "QA-03"
+    ],
+    "duration": 15,
+    "note": ""
   },
   {
     "id": "p4",
@@ -406,7 +570,16 @@
       "c1",
       "c2"
     ],
-    "rationale": "Channel listing read-back and stale-product verification.\n- Ingest listing data from seller centers via channel read-back APIs; map to RMS product master (p1) (3 md)\n- Stale-product detection engine: flag orphaned, deactivated, or drifted listings before publishing for sale (3 md)\n- Verified listing state persistence with drift metadata; integration with Admin Portal (a4) for auto/manual field configuration (2 md)\n- **Total: 8 md**"
+    "rationale": "Channel listing read-back and stale-product verification.\n- Ingest listing data from seller centers via channel read-back APIs; map to RMS product master (p1) (3 md)\n- Stale-product detection engine: flag orphaned, deactivated, or drifted listings before publishing for sale (3 md)\n- Verified listing state persistence with drift metadata; integration with Admin Portal (a4) for auto/manual field configuration (2 md)\n- **Total: 8 md**",
+    "owners": [
+      "DEV-05",
+      "DEV-11",
+      "DEV-12",
+      "DEV-03",
+      "QA-03"
+    ],
+    "duration": 26,
+    "note": ""
   },
   {
     "id": "r1",
@@ -426,7 +599,15 @@
     "predecessors": [
       "m3"
     ],
-    "rationale": "R10 LDD ingestion and effective price engine. Effective-dated behavior creates many edge cases.\n- R10/LDD ingestion: source versioning, effective dates, timezone handling, replay (3 md)\n- Deterministic effective price calculation at business timestamp; promotion active/expiry (3 md)\n- Product/store scope resolution; integration with desired-state comparison (2 md)\n- **Total: 8 md**"
+    "rationale": "R10 LDD ingestion and effective price engine. Effective-dated behavior creates many edge cases.\n- R10/LDD ingestion: source versioning, effective dates, timezone handling, replay (3 md)\n- Deterministic effective price calculation at business timestamp; promotion active/expiry (3 md)\n- Product/store scope resolution; integration with desired-state comparison (2 md)\n- **Total: 8 md**",
+    "owners": [
+      "DEV-06",
+      "DEV-03",
+      "DEV-02",
+      "QA-03"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "r2",
@@ -444,7 +625,15 @@
     ],
     "qaOwner": "QA-03",
     "predecessors": [],
-    "rationale": "Promotion business rules, guardrails, and precedence. Narrow scope: rule confirmation + fixtures.\n- Business rule fixtures: precedence, manual ownership, overrides, clubpack multiplication (3 md)\n- Activation/expiry rules; quarantine for suspicious prices (guardrails) (2 md)\n- **Total: 5 md**"
+    "rationale": "Promotion business rules, guardrails, and precedence. Narrow scope: rule confirmation + fixtures.\n- Business rule fixtures: precedence, manual ownership, overrides, clubpack multiplication (3 md)\n- Activation/expiry rules; quarantine for suspicious prices (guardrails) (2 md)\n- **Total: 5 md**",
+    "owners": [
+      "DEV-06",
+      "TL",
+      "Product Owner",
+      "QA-03"
+    ],
+    "duration": 8,
+    "note": ""
   },
   {
     "id": "r4",
@@ -467,7 +656,15 @@
       "c3",
       "f5"
     ],
-    "rationale": "Price and promo reconciliation. Depends on core engine and adapters being functional.\n- Desired/sent/acknowledged state matching (reuse p3b shared reconciliation pattern) (2 md)\n- Permanent vs retryable failure classification; operator evidence views (2 md)\n- **Total: 4 md**"
+    "rationale": "Price and promo reconciliation. Depends on core engine and adapters being functional.\n- Desired/sent/acknowledged state matching (reuse p3b shared reconciliation pattern) (2 md)\n- Permanent vs retryable failure classification; operator evidence views (2 md)\n- **Total: 4 md**",
+    "owners": [
+      "DEV-06",
+      "DEV-05",
+      "DEV-04",
+      "QA-03"
+    ],
+    "duration": 26,
+    "note": ""
   },
   {
     "id": "o1a",
@@ -488,7 +685,14 @@
       "f1",
       "f2"
     ],
-    "rationale": "Shared inbound order infrastructure. Channel-specific webhook signing belongs to channel adapters.\n- Raw order payload archival to object storage with payload reference (2 md)\n- Kafka quorum acknowledge topic for accepted orders, separate from domain topics (2 md)\n- Worker pool isolation pattern (inbound/polling/outbound) shared by all adapters (1 md)\n- **Total: 5 md**"
+    "rationale": "Shared inbound order infrastructure. Channel-specific webhook signing belongs to channel adapters.\n- Raw order payload archival to object storage with payload reference (2 md)\n- Kafka quorum acknowledge topic for accepted orders, separate from domain topics (2 md)\n- Worker pool isolation pattern (inbound/polling/outbound) shared by all adapters (1 md)\n- **Total: 5 md**",
+    "owners": [
+      "DEV-07",
+      "DEV-04",
+      "QA-04"
+    ],
+    "duration": 26,
+    "note": ""
   },
   {
     "id": "o1b",
@@ -508,7 +712,15 @@
     "predecessors": [
       "o1a"
     ],
-    "rationale": "Reusable polling cursor framework for channels with polling/hybrid mechanics.\n- Distributed polling lease framework: overlap-safe cursors, lease expiry, persistence (2 md)\n- Reusable polling state machine: incremental, full-sync, catch-up modes (1 md)\n- **Total: 3 md**"
+    "rationale": "Reusable polling cursor framework for channels with polling/hybrid mechanics.\n- Distributed polling lease framework: overlap-safe cursors, lease expiry, persistence (2 md)\n- Reusable polling state machine: incremental, full-sync, catch-up modes (1 md)\n- **Total: 3 md**",
+    "owners": [
+      "DEV-07",
+      "DEV-11",
+      "DEV-12",
+      "QA-04"
+    ],
+    "duration": 14,
+    "note": ""
   },
   {
     "id": "o2",
@@ -529,7 +741,15 @@
       "m4",
       "f3"
     ],
-    "rationale": "Canonical normalization, idempotency, persistence. Correctness-critical.\n- Channel-to-canonical order model mapping (header, line, address, payment, references, timestamps) (2 md)\n- Partition-aware persistence using f3 partitions; duplicate suppression (2 md)\n- Out-of-order event handling; cancellation state legality (1 md)\n- **Total: 5 md**"
+    "rationale": "Canonical normalization, idempotency, persistence. Correctness-critical.\n- Channel-to-canonical order model mapping (header, line, address, payment, references, timestamps) (2 md)\n- Partition-aware persistence using f3 partitions; duplicate suppression (2 md)\n- Out-of-order event handling; cancellation state legality (1 md)\n- **Total: 5 md**",
+    "owners": [
+      "DEV-07",
+      "DEV-03",
+      "DEV-02",
+      "QA-04"
+    ],
+    "duration": 19,
+    "note": ""
   },
   {
     "id": "o3",
@@ -549,7 +769,15 @@
     "predecessors": [
       "m3"
     ],
-    "rationale": "Fulfilment routing to WMS/MFC via idempotent hand-off contract.\n- Route accepted orders to WMS/MFC via idempotent hand-off contract (2 md)\n- Retry behavior, timeout handling, stable rejection reason codes, correlation IDs (3 md)\n- Separate Phoenix acceptance time from external fulfilment time (1 md)\n- **Total: 6 md**"
+    "rationale": "Fulfilment routing to WMS/MFC via idempotent hand-off contract.\n- Route accepted orders to WMS/MFC via idempotent hand-off contract (2 md)\n- Retry behavior, timeout handling, stable rejection reason codes, correlation IDs (3 md)\n- Separate Phoenix acceptance time from external fulfilment time (1 md)\n- **Total: 6 md**",
+    "owners": [
+      "DEV-08",
+      "DEV-07",
+      "TL",
+      "QA-04"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "o4",
@@ -570,7 +798,16 @@
     "predecessors": [
       "m3"
     ],
-    "rationale": "Cancellation status minimum flow. Bounded to minimum needed for go-live.\n- Cancellation before fulfilment acceptance (where supported); minimum external status mapping (2 md)\n- State transition legality (prevent invalid backward); stuck hand-off reconciliation (2 md)\n- **Total: 4 md**"
+    "rationale": "Cancellation status minimum flow. Bounded to minimum needed for go-live.\n- Cancellation before fulfilment acceptance (where supported); minimum external status mapping (2 md)\n- State transition legality (prevent invalid backward); stuck hand-off reconciliation (2 md)\n- **Total: 4 md**",
+    "owners": [
+      "DEV-08",
+      "DEV-07",
+      "DEV-11",
+      "DEV-12",
+      "QA-04"
+    ],
+    "duration": 12,
+    "note": ""
   },
   {
     "id": "i1",
@@ -590,7 +827,15 @@
     "predecessors": [
       "m3"
     ],
-    "rationale": "Stock Service stock ingestion and stock ledger.\n- Stock Service ingestion: consume movement/snapshot events, unique movement identity (3 md)\n- Stale version rejection; ordering by store/SKU for correct ATS calculation (1 md)\n- Durable PostgreSQL stock ledger with reconciliation snapshot support (2 md)\n- **Total: 6 md**"
+    "rationale": "Stock Service stock ingestion and stock ledger.\n- Stock Service ingestion: consume movement/snapshot events, unique movement identity (3 md)\n- Stale version rejection; ordering by store/SKU for correct ATS calculation (1 md)\n- Durable PostgreSQL stock ledger with reconciliation snapshot support (2 md)\n- **Total: 6 md**",
+    "owners": [
+      "DEV-09",
+      "DEV-03",
+      "DEV-02",
+      "QA-03"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "i2",
@@ -610,7 +855,15 @@
     "predecessors": [
       "f4"
     ],
-    "rationale": "ATS calculation, reserves, and safety-stock. Uses f4 Lua primitives.\n- Atomic movement application using f4 Lua primitives; maintain ATS state (3 md)\n- Damage, pending, unpaid, flash reserve handling with idempotency and replay (2 md)\n- Safety-stock configuration and enforcement; failure recovery testing (2 md)\n- **Total: 7 md**"
+    "rationale": "ATS calculation, reserves, and safety-stock. Uses f4 Lua primitives.\n- Atomic movement application using f4 Lua primitives; maintain ATS state (3 md)\n- Damage, pending, unpaid, flash reserve handling with idempotency and replay (2 md)\n- Safety-stock configuration and enforcement; failure recovery testing (2 md)\n- **Total: 7 md**",
+    "owners": [
+      "DEV-09",
+      "DEV-10",
+      "TL",
+      "QA-05"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "i3",
@@ -634,7 +887,15 @@
       "c2",
       "c3"
     ],
-    "rationale": "Stock sync orchestration and coalescing.\n- Convert ATS changes to channel-specific desired stock commands (2 md)\n- Coalesce pending stock updates to latest version; prioritize campaign SKUs (2 md)\n- Respect quotas via r3 scheduler; avoid stale outbound writes (2 md)\n- **Total: 6 md**"
+    "rationale": "Stock sync orchestration and coalescing.\n- Convert ATS changes to channel-specific desired stock commands (2 md)\n- Coalesce pending stock updates to latest version; prioritize campaign SKUs (2 md)\n- Respect quotas via r3 scheduler; avoid stale outbound writes (2 md)\n- **Total: 6 md**",
+    "owners": [
+      "DEV-10",
+      "DEV-09",
+      "DEV-04",
+      "QA-03"
+    ],
+    "duration": 33,
+    "note": ""
   },
   {
     "id": "i4",
@@ -656,7 +917,16 @@
       "m3",
       "f5"
     ],
-    "rationale": "Stock reconciliation. Reuses sync ledger and reconciliation patterns from p3b/r4.\n- Compare Phoenix desired stock with seller acknowledgement/read-back (reuse p3b/r4 pattern) (2 md)\n- Drift surfacing and replay/repair path evidence (1 md)\n- **Total: 3 md**"
+    "rationale": "Stock reconciliation. Reuses sync ledger and reconciliation patterns from p3b/r4.\n- Compare Phoenix desired stock with seller acknowledgement/read-back (reuse p3b/r4 pattern) (2 md)\n- Drift surfacing and replay/repair path evidence (1 md)\n- **Total: 3 md**",
+    "owners": [
+      "DEV-10",
+      "DEV-09",
+      "DEV-11",
+      "DEV-12",
+      "QA-03"
+    ],
+    "duration": 18,
+    "note": ""
   },
   {
     "id": "c1",
@@ -677,7 +947,16 @@
     "predecessors": [
       "m3"
     ],
-    "rationale": "Shopee E2E adapter. Primary volume channel.\n- Shopee auth, signing, channel-specific webhook verification; polling cursor integration with o1b (2 md)\n- Inbound order path: raw order to Kafka via o1a shared infrastructure (2 md)\n- Outbound sync: product, price, stock, status transformation using s1 SDK and s2 capability registry (3 md)\n- Sandbox certification, error mapping, production configuration (2 md)\n- **Total: 9 md**"
+    "rationale": "Shopee E2E adapter. Primary volume channel.\n- Shopee auth, signing, channel-specific webhook verification; polling cursor integration with o1b (2 md)\n- Inbound order path: raw order to Kafka via o1a shared infrastructure (2 md)\n- Outbound sync: product, price, stock, status transformation using s1 SDK and s2 capability registry (3 md)\n- Sandbox certification, error mapping, production configuration (2 md)\n- **Total: 9 md**",
+    "owners": [
+      "DEV-11",
+      "DEV-04",
+      "DEV-07",
+      "DEV-10",
+      "QA-04"
+    ],
+    "duration": 54,
+    "note": ""
   },
   {
     "id": "c2",
@@ -698,7 +977,16 @@
     "predecessors": [
       "m3"
     ],
-    "rationale": "Lazada E2E adapter. Parallel track with separate fixtures.\n- Lazada auth, signing, channel-specific webhook verification; polling cursor integration with o1b (2 md)\n- Inbound order path: raw order to Kafka via o1a (2 md)\n- Outbound sync: product, price, stock, status transformation via s1 SDK (3 md)\n- Sandbox certification, error mapping, production configuration (2 md)\n- **Total: 9 md**"
+    "rationale": "Lazada E2E adapter. Parallel track with separate fixtures.\n- Lazada auth, signing, channel-specific webhook verification; polling cursor integration with o1b (2 md)\n- Inbound order path: raw order to Kafka via o1a (2 md)\n- Outbound sync: product, price, stock, status transformation via s1 SDK (3 md)\n- Sandbox certification, error mapping, production configuration (2 md)\n- **Total: 9 md**",
+    "owners": [
+      "DEV-11",
+      "DEV-04",
+      "DEV-07",
+      "DEV-10",
+      "QA-04"
+    ],
+    "duration": 54,
+    "note": ""
   },
   {
     "id": "c3",
@@ -719,7 +1007,16 @@
     "predecessors": [
       "m3"
     ],
-    "rationale": "TikTok E2E adapter. Starts 1 week after c1/c2 to reuse SDK lessons.\n- TikTok auth, signing, channel-specific webhook/polling mechanics (2 md)\n- Inbound order path: raw order to Kafka (2 md)\n- Outbound sync: product, price, stock, status transformation via s1 SDK (3 md)\n- Sandbox certification, error mapping, production configuration (2 md)\n- **Total: 9 md**"
+    "rationale": "TikTok E2E adapter. Starts 1 week after c1/c2 to reuse SDK lessons.\n- TikTok auth, signing, channel-specific webhook/polling mechanics (2 md)\n- Inbound order path: raw order to Kafka (2 md)\n- Outbound sync: product, price, stock, status transformation via s1 SDK (3 md)\n- Sandbox certification, error mapping, production configuration (2 md)\n- **Total: 9 md**",
+    "owners": [
+      "DEV-12",
+      "DEV-04",
+      "DEV-07",
+      "DEV-10",
+      "QA-04"
+    ],
+    "duration": 47,
+    "note": ""
   },
   {
     "id": "c4",
@@ -739,7 +1036,15 @@
     "predecessors": [
       "c3"
     ],
-    "rationale": "Amaze/AxtraMall E2E adapter. Reuses SDK and patterns from c1-c3.\n- Amaze/AxtraMall auth, signing, polling mechanics (2 md)\n- Inbound order path: raw order to Kafka (2 md)\n- Outbound sync: product, price, stock, status transformation via s1 SDK (2 md)\n- Sandbox certification, error mapping, production configuration (2 md)\n- **Total: 8 md**"
+    "rationale": "Amaze/AxtraMall E2E adapter. Reuses SDK and patterns from c1-c3.\n- Amaze/AxtraMall auth, signing, polling mechanics (2 md)\n- Inbound order path: raw order to Kafka (2 md)\n- Outbound sync: product, price, stock, status transformation via s1 SDK (2 md)\n- Sandbox certification, error mapping, production configuration (2 md)\n- **Total: 8 md**",
+    "owners": [
+      "DEV-12",
+      "DEV-04",
+      "DEV-07",
+      "QA-04"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "a1",
@@ -758,7 +1063,15 @@
     ],
     "qaOwner": "QA-06",
     "predecessors": [],
-    "rationale": "Admin UX flows and permissions. Must finish before screens built to avoid rework.\n- Operator role definition, screen flow design, navigation hierarchy (3 md)\n- Permission boundaries: view-only vs executable actions; audit requirements (2 md)\n- Retry authorization rules: who can retry what, two-person approval model (2 md)\n- **Total: 7 md**"
+    "rationale": "Admin UX flows and permissions. Must finish before screens built to avoid rework.\n- Operator role definition, screen flow design, navigation hierarchy (3 md)\n- Permission boundaries: view-only vs executable actions; audit requirements (2 md)\n- Retry authorization rules: who can retry what, two-person approval model (2 md)\n- **Total: 7 md**",
+    "owners": [
+      "DEV-13",
+      "DEV-14",
+      "TL",
+      "QA-06"
+    ],
+    "duration": 26,
+    "note": ""
   },
   {
     "id": "a2",
@@ -779,7 +1092,15 @@
       "a1",
       "o1b"
     ],
-    "rationale": "Order monitoring portal with searchable views and evidence links.\n- Searchable order views: filters by channel/account/order/SKU/status; lifecycle timeline (3 md)\n- Fulfilment hand-off status, error/exceptions, raw evidence links (2 md)\n- Backend read APIs with query constraints (no overload on transactional tables) (2 md)\n- **Total: 7 md**"
+    "rationale": "Order monitoring portal with searchable views and evidence links.\n- Searchable order views: filters by channel/account/order/SKU/status; lifecycle timeline (3 md)\n- Fulfilment hand-off status, error/exceptions, raw evidence links (2 md)\n- Backend read APIs with query constraints (no overload on transactional tables) (2 md)\n- **Total: 7 md**",
+    "owners": [
+      "DEV-13",
+      "DEV-07",
+      "DEV-14",
+      "QA-06"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "a3",
@@ -801,7 +1122,16 @@
       "a1",
       "o3"
     ],
-    "rationale": "Manual SKU warehouse mapping upload. Critical because WMS routing depends on correct mapping.\n- Upload template and CSV parser with validation; preview of parsed data (3 md)\n- Duplicate detection, SKU and warehouse reference checks (2 md)\n- Approval/activation workflow, versioning, audit trail, rollback capability (3 md)\n- Routing-service lookup integration with WMS/MFC (1 md)\n- **Total: 9 md**"
+    "rationale": "Manual SKU warehouse mapping upload. Critical because WMS routing depends on correct mapping.\n- Upload template and CSV parser with validation; preview of parsed data (3 md)\n- Duplicate detection, SKU and warehouse reference checks (2 md)\n- Approval/activation workflow, versioning, audit trail, rollback capability (3 md)\n- Routing-service lookup integration with WMS/MFC (1 md)\n- **Total: 9 md**",
+    "owners": [
+      "DEV-14",
+      "DEV-08",
+      "DEV-13",
+      "DEV-09",
+      "QA-06"
+    ],
+    "duration": 47,
+    "note": ""
   },
   {
     "id": "a4",
@@ -822,7 +1152,15 @@
       "a1",
       "p2"
     ],
-    "rationale": "Product sync manual/auto configuration UI and APIs.\n- UI for manual/auto product master sync per channel/account/SKU cohort (3 md)\n- Effective dating, validation, audit, conflict prevention with writer ownership (3 md)\n- Backend APIs for configuration persistence and rollback (2 md)\n- **Total: 8 md**"
+    "rationale": "Product sync manual/auto configuration UI and APIs.\n- UI for manual/auto product master sync per channel/account/SKU cohort (3 md)\n- Effective dating, validation, audit, conflict prevention with writer ownership (3 md)\n- Backend APIs for configuration persistence and rollback (2 md)\n- **Total: 8 md**",
+    "owners": [
+      "DEV-14",
+      "DEV-05",
+      "DEV-13",
+      "QA-06"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "a5",
@@ -846,7 +1184,18 @@
       "a1",
       "s2"
     ],
-    "rationale": "Sync telemetry, retry controls, and governance. Consumes f5 observability pipeline.\n- Sync telemetry views: product/price/stock/order queue age, retry/DLQ state, failure classification (3 md)\n- Manual retry preview: scope, idempotency impact, rate-limit protection, permission check (3 md)\n- Immutable audit for all retry actions; scoped retry execution controls (2 md)\n- **Total: 8 md**"
+    "rationale": "Sync telemetry, retry controls, and governance. Consumes f5 observability pipeline.\n- Sync telemetry views: product/price/stock/order queue age, retry/DLQ state, failure classification (3 md)\n- Manual retry preview: scope, idempotency impact, rate-limit protection, permission check (3 md)\n- Immutable audit for all retry actions; scoped retry execution controls (2 md)\n- **Total: 8 md**",
+    "owners": [
+      "DEV-13",
+      "DEV-14",
+      "DEV-04",
+      "DEV-05",
+      "DEV-06",
+      "DEV-10",
+      "QA-06"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "a6",
@@ -869,7 +1218,14 @@
       "a4",
       "a5"
     ],
-    "rationale": "Admin Portal UX polish, accessibility, and UAT hardening.\n- Operator workflow polish based on UAT feedback; empty/error/loading states (3 md)\n- Permission defect fixes; import edge cases; retry confirmation wording (2 md)\n- Accessibility basics; UAT evidence capture for sign-off (1 md)\n- **Total: 6 md**"
+    "rationale": "Admin Portal UX polish, accessibility, and UAT hardening.\n- Operator workflow polish based on UAT feedback; empty/error/loading states (3 md)\n- Permission defect fixes; import edge cases; retry confirmation wording (2 md)\n- Accessibility basics; UAT evidence capture for sign-off (1 md)\n- **Total: 6 md**",
+    "owners": [
+      "DEV-13",
+      "DEV-14",
+      "QA-06"
+    ],
+    "duration": 18,
+    "note": ""
   },
   {
     "id": "devdone",
@@ -895,7 +1251,13 @@
       "s3",
       "a6"
     ],
-    "rationale": "End-to-end feature complete milestone. Marks transition from active code-writing to full integrated verification."
+    "rationale": "End-to-end feature complete milestone. Marks transition from active code-writing to full integrated verification.",
+    "owners": [
+      "TL",
+      "QA-01"
+    ],
+    "duration": 0,
+    "note": ""
   },
   {
     "id": "t1",
@@ -921,7 +1283,20 @@
     "predecessors": [
       "devdone"
     ],
-    "rationale": "SIT integrated functional and regression.\n- Phase 1: completed domain flows integrated and tested together (5 md)\n- Phase 2: full regression after all features complete; defect fix and retest cycles (4 md)\n- **Total: 9 md**"
+    "rationale": "SIT integrated functional and regression.\n- Phase 1: completed domain flows integrated and tested together (5 md)\n- Phase 2: full regression after all features complete; defect fix and retest cycles (4 md)\n- **Total: 9 md**",
+    "owners": [
+      "QA-01",
+      "DEV-03",
+      "DEV-04",
+      "DEV-07",
+      "DEV-09",
+      "DEV-11",
+      "DEV-12",
+      "DEV-13",
+      "DEV-14"
+    ],
+    "duration": 40,
+    "note": ""
   },
   {
     "id": "t2",
@@ -943,7 +1318,15 @@
       "f6",
       "f1"
     ],
-    "rationale": "Load and stress testing. Includes tuning and retesting.\n- 250 orders/sec baseline: execute, measure, tune (3 md)\n- 500 orders/sec headroom: burst test with price/promo and stock bursts (3 md)\n- Retry storm and backlog drain scenarios (2 md)\n- **Total: 8 md**"
+    "rationale": "Load and stress testing. Includes tuning and retesting.\n- 250 orders/sec baseline: execute, measure, tune (3 md)\n- 500 orders/sec headroom: burst test with price/promo and stock bursts (3 md)\n- Retry storm and backlog drain scenarios (2 md)\n- **Total: 8 md**",
+    "owners": [
+      "QA-05",
+      "DEV-01",
+      "DEV-02",
+      "DEV-04"
+    ],
+    "duration": 19,
+    "note": ""
   },
   {
     "id": "t3",
@@ -969,7 +1352,16 @@
       "f4",
       "devdone"
     ],
-    "rationale": "Resilience failover replay DLQ testing.\n- Failure scenarios: pod, broker, Redis, PostgreSQL, external API outage (3 md)\n- Replay correctness and duplicate suppression; no-loss acceptance evidence (3 md)\n- **Total: 6 md**"
+    "rationale": "Resilience failover replay DLQ testing.\n- Failure scenarios: pod, broker, Redis, PostgreSQL, external API outage (3 md)\n- Replay correctness and duplicate suppression; no-loss acceptance evidence (3 md)\n- **Total: 6 md**",
+    "owners": [
+      "QA-05",
+      "DEV-01",
+      "DEV-02",
+      "DEV-07",
+      "DEV-09"
+    ],
+    "duration": 19,
+    "note": ""
   },
   {
     "id": "t4",
@@ -995,7 +1387,21 @@
     "predecessors": [
       "devdone"
     ],
-    "rationale": "UAT and business sign-off. Overlaps late SIT.\n- Business UAT: mappings, campaign rules, price behavior, order handling, stock outcomes (4 md)\n- Operations user validation: Admin Portal workflows, exception handling (2 md)\n- UAT evidence and sign-off (2 md)\n- **Total: 8 md**"
+    "rationale": "UAT and business sign-off. Overlaps late SIT.\n- Business UAT: mappings, campaign rules, price behavior, order handling, stock outcomes (4 md)\n- Operations user validation: Admin Portal workflows, exception handling (2 md)\n- UAT evidence and sign-off (2 md)\n- **Total: 8 md**",
+    "owners": [
+      "QA-04",
+      "DEV-05",
+      "DEV-06",
+      "DEV-07",
+      "DEV-09",
+      "DEV-11",
+      "DEV-13",
+      "DEV-14",
+      "TL",
+      "QA-06"
+    ],
+    "duration": 26,
+    "note": ""
   },
   {
     "id": "t5",
@@ -1017,7 +1423,16 @@
     "predecessors": [
       "devdone"
     ],
-    "rationale": "Parallel run and reconciliation. Required before writer ownership transfer.\n- Compare Phoenix vs legacy/shadow outputs per domain (3 md)\n- Reconciliation reports and drift analysis; writer transfer readiness confirmation (2 md)\n- **Total: 5 md**"
+    "rationale": "Parallel run and reconciliation. Required before writer ownership transfer.\n- Compare Phoenix vs legacy/shadow outputs per domain (3 md)\n- Reconciliation reports and drift analysis; writer transfer readiness confirmation (2 md)\n- **Total: 5 md**",
+    "owners": [
+      "QA-03",
+      "DEV-05",
+      "DEV-06",
+      "DEV-09",
+      "DEV-10"
+    ],
+    "duration": 26,
+    "note": ""
   },
   {
     "id": "t6",
@@ -1041,7 +1456,18 @@
     "predecessors": [
       "devdone"
     ],
-    "rationale": "Production readiness, cutover, and rollback rehearsal.\n- Production readiness: secrets, PII, access control, deployment approvals, runbooks (3 md)\n- Cutover and rollback rehearsal: kill switches, writer transfer, on-call handover (3 md)\n- **Total: 6 md**"
+    "rationale": "Production readiness, cutover, and rollback rehearsal.\n- Production readiness: secrets, PII, access control, deployment approvals, runbooks (3 md)\n- Cutover and rollback rehearsal: kill switches, writer transfer, on-call handover (3 md)\n- **Total: 6 md**",
+    "owners": [
+      "DEV-01",
+      "DEV-13",
+      "QA-01",
+      "QA-05",
+      "QA-06",
+      "Release Manager",
+      "TL"
+    ],
+    "duration": 12,
+    "note": ""
   },
   {
     "id": "cutover",
@@ -1070,7 +1496,19 @@
       "t5",
       "t6"
     ],
-    "rationale": "Technical cutover milestone. Production release complete and monitored."
+    "rationale": "Technical cutover milestone. Production release complete and monitored.",
+    "owners": [
+      "TL",
+      "DEV-01",
+      "DEV-07",
+      "DEV-09",
+      "DEV-11",
+      "DEV-12",
+      "DEV-13",
+      "QA-01"
+    ],
+    "duration": 0,
+    "note": ""
   },
   {
     "id": "live",
@@ -1094,6 +1532,21 @@
     "predecessors": [
       "cutover"
     ],
-    "rationale": "Business go-live and hypercare period. Release officially in operation with intense hypercare support, daily reconciliation, incident response, and production monitoring."
+    "rationale": "Business go-live and hypercare period. Release officially in operation with intense hypercare support, daily reconciliation, incident response, and production monitoring.",
+    "owners": [
+      "TL",
+      "DEV-01",
+      "DEV-07",
+      "DEV-09",
+      "DEV-11",
+      "DEV-12",
+      "DEV-13",
+      "QA-01",
+      "QA-04",
+      "QA-05",
+      "QA-06"
+    ],
+    "duration": 6,
+    "note": ""
   }
 ]
