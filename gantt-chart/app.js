@@ -1240,10 +1240,13 @@ function initEventListeners() {
 function computePlanCurve() {
   const nonMilestone = tasksData.filter(t => !t.isMilestone);
   const totalWeight = nonMilestone.reduce((sum, t) => sum + t.duration, 0);
-  if (totalWeight === 0) return { plan: [], actualOverall: 0, todayExpected: 0 };
+  if (totalWeight === 0) return { plan: [], actualOverall: 0, todayExpected: 0, totalMandays: 0, actualMandays: 0, plannedMandays: 0 };
 
   const todayExpected = nonMilestone.reduce((sum, t) => sum + t.duration * getExpectedProgress(t), 0) / totalWeight;
   const actualOverall = nonMilestone.reduce((sum, t) => sum + t.duration * getTaskProgress(t.id), 0) / totalWeight;
+
+  const actualMandays = nonMilestone.reduce((sum, t) => sum + t.duration * getTaskProgress(t.id) / 100, 0);
+  const plannedMandays = nonMilestone.reduce((sum, t) => sum + t.duration * getExpectedProgress(t) / 100, 0);
 
   const plan = [];
   for (let d = 0; d <= totalProjectDays; d++) {
@@ -1260,7 +1263,7 @@ function computePlanCurve() {
     plan.push(plannedWeight / totalWeight);
   }
 
-  return { plan, actualOverall, todayExpected };
+  return { plan, actualOverall, todayExpected, totalMandays: totalWeight, actualMandays, plannedMandays };
 }
 
 function drawProjectionChart(planData, actualOverall) {
@@ -1401,9 +1404,9 @@ function drawProjectionChart(planData, actualOverall) {
 }
 
 function openProjectionModal() {
-  const { plan, actualOverall, todayExpected } = computePlanCurve();
-  document.getElementById('proj-planned').textContent = todayExpected.toFixed(1) + '%';
-  document.getElementById('proj-actual').textContent = actualOverall.toFixed(1) + '%';
+  const { plan, actualOverall, todayExpected, totalMandays, actualMandays, plannedMandays } = computePlanCurve();
+  document.getElementById('proj-planned').textContent = `${todayExpected.toFixed(1)}% (${plannedMandays.toFixed(0)} MD)`;
+  document.getElementById('proj-actual').textContent = `${actualOverall.toFixed(1)}% (${actualMandays.toFixed(0)} MD)`;
   const variance = actualOverall - todayExpected;
   const varEl = document.getElementById('proj-variance');
   varEl.textContent = (variance >= 0 ? '+' : '') + variance.toFixed(1) + '%';
