@@ -444,9 +444,9 @@ function renderGantt() {
 
     // Compute section aggregate progress
     const sectionNonMilestone = sectionTasks.filter(t => !t.isMilestone);
-    const totalWeight = sectionNonMilestone.reduce((sum, t) => sum + t.duration, 0);
-    const completedWeight = sectionNonMilestone.reduce((sum, t) => sum + t.duration * getTaskProgress(t.id) / 100, 0);
-    const sectionAggProgress = totalWeight > 0 ? Math.round(completedWeight / totalWeight * 100) : 0;
+    const totalEffort = sectionNonMilestone.reduce((sum, t) => sum + (t.effort || t.duration), 0);
+    const completedEffort = sectionNonMilestone.reduce((sum, t) => sum + (t.effort || t.duration) * getTaskProgress(t.id) / 100, 0);
+    const sectionAggProgress = totalEffort > 0 ? Math.round(completedEffort / totalEffort * 100) : 0;
 
     // Roll up the section's visible tasks into a single group span
     const groupBounds = calculateGroupBounds(filteredSectionTasks);
@@ -497,8 +497,8 @@ function renderGantt() {
     // progress: any blocked -> amber border, fill colored by aggregate progress.
     if (isSectionCollapsed && groupBounds && groupBounds.durationDays > 0) {
       const groupBlocked = filteredSectionTasks.some(t => isTaskBlocked(t.id));
-      const aggExpected = totalWeight > 0
-        ? Math.round(sectionNonMilestone.reduce((sum, t) => sum + t.duration * getExpectedProgress(t) / 100, 0) / totalWeight * 100)
+      const aggExpected = totalEffort > 0
+        ? Math.round(sectionNonMilestone.reduce((sum, t) => sum + (t.effort || t.duration) * getExpectedProgress(t) / 100, 0) / totalEffort * 100)
         : 0;
       const fillClass = getProgressFillClass(sectionAggProgress, aggExpected);
 
@@ -920,6 +920,7 @@ function openTaskModal(task) {
   currentModalTaskId = task.id;
 
   document.getElementById('modal-task-duration').textContent = task.isMilestone ? 'Milestone (0 Days)' : `${task.duration} Days`;
+  document.getElementById('modal-task-effort').textContent = task.effort !== undefined ? `${task.effort} MD` : '—';
   let ownersHTML = '';
   if (task.primaryOwner) {
     ownersHTML += `<div><strong style="font-size: 11px; color: var(--text-secondary);">Primary:</strong> ${getOwnerChipHTML(task.primaryOwner)}</div>`;
@@ -1239,14 +1240,14 @@ function initEventListeners() {
 // Projection chart functions
 function computePlanCurve() {
   const nonMilestone = tasksData.filter(t => !t.isMilestone);
-  const totalWeight = nonMilestone.reduce((sum, t) => sum + t.duration, 0);
-  if (totalWeight === 0) return { plan: [], actualOverall: 0, todayExpected: 0, totalMandays: 0, actualMandays: 0, plannedMandays: 0 };
+  const totalEffort = nonMilestone.reduce((sum, t) => sum + (t.effort || t.duration), 0);
+  if (totalEffort === 0) return { plan: [], actualOverall: 0, todayExpected: 0, totalMandays: 0, actualMandays: 0, plannedMandays: 0 };
 
-  const todayExpected = nonMilestone.reduce((sum, t) => sum + t.duration * getExpectedProgress(t), 0) / totalWeight;
-  const actualOverall = nonMilestone.reduce((sum, t) => sum + t.duration * getTaskProgress(t.id), 0) / totalWeight;
+  const todayExpected = nonMilestone.reduce((sum, t) => sum + (t.effort || t.duration) * getExpectedProgress(t), 0) / totalEffort;
+  const actualOverall = nonMilestone.reduce((sum, t) => sum + (t.effort || t.duration) * getTaskProgress(t.id), 0) / totalEffort;
 
-  const actualMandays = nonMilestone.reduce((sum, t) => sum + t.duration * getTaskProgress(t.id) / 100, 0);
-  const plannedMandays = nonMilestone.reduce((sum, t) => sum + t.duration * getExpectedProgress(t) / 100, 0);
+  const actualMandays = nonMilestone.reduce((sum, t) => sum + (t.effort || t.duration) * getTaskProgress(t.id) / 100, 0);
+  const plannedMandays = nonMilestone.reduce((sum, t) => sum + (t.effort || t.duration) * getExpectedProgress(t) / 100, 0);
 
   const plan = [];
   for (let d = 0; d <= totalProjectDays; d++) {
@@ -1258,12 +1259,12 @@ function computePlanCurve() {
       if (d < sOff) tp = 0;
       else if (d >= eOff) tp = 100;
       else tp = ((d - sOff) / t.duration) * 100;
-      plannedWeight += tp * t.duration;
+      plannedWeight += tp * (t.effort || t.duration);
     });
-    plan.push(plannedWeight / totalWeight);
+    plan.push(plannedWeight / totalEffort);
   }
 
-  return { plan, actualOverall, todayExpected, totalMandays: totalWeight, actualMandays, plannedMandays };
+  return { plan, actualOverall, todayExpected, totalMandays: totalEffort, actualMandays, plannedMandays };
 }
 
 function drawProjectionChart(planData, actualOverall) {
