@@ -24,7 +24,8 @@
       "Release Manager"
     ],
     "duration": 5,
-    "note": ""
+    "note": "",
+    "progress": 100
   },
   {
     "id": "m2",
@@ -54,7 +55,8 @@
       "QA-01"
     ],
     "duration": 12,
-    "note": ""
+    "note": "",
+    "progress": 80
   },
   {
     "id": "m3",
@@ -84,7 +86,8 @@
       "QA-02"
     ],
     "duration": 26,
-    "note": ""
+    "note": "",
+    "progress": 80
   },
   {
     "id": "m4",
@@ -119,7 +122,8 @@
       "QA-02"
     ],
     "duration": 33,
-    "note": ""
+    "note": "",
+    "progress": 80
   },
   {
     "id": "f1",
@@ -143,7 +147,8 @@
       "QA-05"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 60
   },
   {
     "id": "f2",
@@ -172,7 +177,8 @@
       "QA-02"
     ],
     "duration": 35,
-    "note": ""
+    "note": "",
+    "progress": 80
   },
   {
     "id": "f3",
@@ -202,7 +208,8 @@
       "QA-02"
     ],
     "duration": 33,
-    "note": ""
+    "note": "",
+    "progress": 60
   },
   {
     "id": "f4",
@@ -231,7 +238,8 @@
       "QA-05"
     ],
     "duration": 33,
-    "note": ""
+    "note": "",
+    "progress": 60
   },
   {
     "id": "f5",
@@ -275,7 +283,8 @@
       "QA-01"
     ],
     "duration": 64,
-    "note": ""
+    "note": "",
+    "progress": 30
   },
   {
     "id": "f6",
@@ -305,7 +314,8 @@
       "DEV-04"
     ],
     "duration": 33,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "s1",
@@ -337,7 +347,8 @@
       "QA-02"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 60
   },
   {
     "id": "s2",
@@ -365,7 +376,8 @@
       "QA-02"
     ],
     "duration": 33,
-    "note": ""
+    "note": "",
+    "progress": 30
   },
   {
     "id": "s3",
@@ -396,7 +408,8 @@
       "DEV-12"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "r3",
@@ -430,7 +443,8 @@
       "QA-05"
     ],
     "duration": 47,
-    "note": ""
+    "note": "",
+    "progress": 25
   },
   {
     "id": "p1",
@@ -458,7 +472,8 @@
       "QA-03"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "p2",
@@ -486,7 +501,8 @@
       "QA-03"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 20
   },
   {
     "id": "p3a",
@@ -519,7 +535,8 @@
       "QA-03"
     ],
     "duration": 18,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "p3b",
@@ -547,7 +564,8 @@
       "QA-03"
     ],
     "duration": 15,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "p4",
@@ -579,7 +597,8 @@
       "QA-03"
     ],
     "duration": 26,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "r1",
@@ -607,7 +626,8 @@
       "QA-03"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 10
   },
   {
     "id": "r2",
@@ -633,7 +653,8 @@
       "QA-03"
     ],
     "duration": 8,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "r4",
@@ -664,7 +685,8 @@
       "QA-03"
     ],
     "duration": 26,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "o1a",
@@ -692,7 +714,8 @@
       "QA-04"
     ],
     "duration": 26,
-    "note": ""
+    "note": "",
+    "progress": 50
   },
   {
     "id": "o1b",
@@ -720,7 +743,8 @@
       "QA-04"
     ],
     "duration": 14,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "o2",
@@ -749,7 +773,8 @@
       "QA-04"
     ],
     "duration": 19,
-    "note": ""
+    "note": "",
+    "progress": 60
   },
   {
     "id": "o3",
@@ -777,7 +802,8 @@
       "QA-04"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "o4",
@@ -807,7 +833,8 @@
       "QA-04"
     ],
     "duration": 12,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "i1",
@@ -835,7 +862,8 @@
       "QA-03"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "i2",
@@ -863,7 +891,8 @@
       "QA-05"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "i3",
@@ -895,7 +924,8 @@
       "QA-03"
     ],
     "duration": 33,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "i4",
@@ -926,7 +956,8 @@
       "QA-03"
     ],
     "duration": 18,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "c1",
@@ -956,7 +987,8 @@
       "QA-04"
     ],
     "duration": 54,
-    "note": ""
+    "note": "",
+    "progress": 75
   },
   {
     "id": "c2",
@@ -986,7 +1018,8 @@
       "QA-04"
     ],
     "duration": 54,
-    "note": ""
+    "note": "",
+    "progress": 60
   },
   {
     "id": "c3",
@@ -1016,7 +1049,8 @@
       "QA-04"
     ],
     "duration": 47,
-    "note": ""
+    "note": "",
+    "progress": 30
   },
   {
     "id": "c4",
@@ -1044,7 +1078,8 @@
       "QA-04"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "a1",
@@ -1071,7 +1106,8 @@
       "QA-06"
     ],
     "duration": 26,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "a2",
@@ -1100,7 +1136,8 @@
       "QA-06"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 20
   },
   {
     "id": "a3",
@@ -1131,7 +1168,8 @@
       "QA-06"
     ],
     "duration": 47,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "a4",
@@ -1160,7 +1198,8 @@
       "QA-06"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "a5",
@@ -1195,7 +1234,8 @@
       "QA-06"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 20
   },
   {
     "id": "a6",
@@ -1225,7 +1265,8 @@
       "QA-06"
     ],
     "duration": 18,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "devdone",
@@ -1257,7 +1298,8 @@
       "QA-01"
     ],
     "duration": 0,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "t1",
@@ -1296,7 +1338,8 @@
       "DEV-14"
     ],
     "duration": 40,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "t2",
@@ -1326,7 +1369,8 @@
       "DEV-04"
     ],
     "duration": 19,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "t3",
@@ -1361,7 +1405,8 @@
       "DEV-09"
     ],
     "duration": 19,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "t4",
@@ -1401,7 +1446,8 @@
       "QA-06"
     ],
     "duration": 26,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "t5",
@@ -1432,7 +1478,8 @@
       "DEV-10"
     ],
     "duration": 26,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "t6",
@@ -1467,7 +1514,8 @@
       "TL"
     ],
     "duration": 12,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "cutover",
@@ -1508,7 +1556,8 @@
       "QA-01"
     ],
     "duration": 0,
-    "note": ""
+    "note": "",
+    "progress": 0
   },
   {
     "id": "live",
@@ -1547,6 +1596,7 @@
       "QA-06"
     ],
     "duration": 6,
-    "note": ""
+    "note": "",
+    "progress": 0
   }
 ]
