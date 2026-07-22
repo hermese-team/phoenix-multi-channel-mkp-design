@@ -53,6 +53,16 @@ async function loadTasksData() {
     });
   } catch (e) {}
 
+  // Extract progress from data.json (if present) for new users without localStorage
+  const progressFromData = {};
+  data.forEach(task => {
+    if (task.progress !== undefined && task.progress !== null) {
+      progressFromData[task.id] = Number(task.progress);
+    }
+    delete task.progress;
+  });
+  importedProgress = progressFromData;
+
   tasksData = data;
 }
 
@@ -107,9 +117,15 @@ function saveState() {
 
 // Progress state management
 let taskProgress = {};
+let importedProgress = {};
 function initProgress() {
   const saved = localStorage.getItem('phoenix_gantt_progress');
-  if (saved) taskProgress = JSON.parse(saved);
+  if (saved) {
+    taskProgress = JSON.parse(saved);
+  } else if (Object.keys(importedProgress).length > 0) {
+    taskProgress = { ...importedProgress };
+    saveProgress();
+  }
 }
 function saveProgress() {
   localStorage.setItem('phoenix_gantt_progress', JSON.stringify(taskProgress));
@@ -155,7 +171,8 @@ function saveTaskOverride(taskId, field, value) {
 function downloadJSON() {
   const exportData = tasksData.map(task => ({
     ...task,
-    note: getTaskNote(task.id)
+    note: getTaskNote(task.id),
+    progress: getTaskProgress(task.id) || 0
   }));
   const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
