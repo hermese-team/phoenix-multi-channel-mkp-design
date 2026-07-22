@@ -7,7 +7,7 @@ async function loadTasksData() {
   let data;
 
   try {
-    const res = await fetch('data.json');
+    const res = await fetch('data.json?_=' + Date.now());
     if (res.ok) data = await res.json();
   } catch (e) {
     // fetch failed (e.g. file:// protocol), fall through to embedded data
