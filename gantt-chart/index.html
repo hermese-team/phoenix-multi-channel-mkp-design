@@ -297,7 +297,19 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- Version guard: on version change clears stale localStorage so
+       users get fresh progress recalibration without manual cache clear.
+       Bump the version number in both places when making logic changes. -->
+  <script>
+    var APP_VERSION = '2';
+    var storedVer = localStorage.getItem('phoenix_gantt_version');
+    if (storedVer && storedVer !== APP_VERSION) {
+      ['phoenix_gantt_progress','phoenix_gantt_dependencies','phoenix_gantt_notes','phoenix_gantt_task_overrides']
+        .forEach(function(k) { localStorage.removeItem(k); });
+    }
+    localStorage.setItem('phoenix_gantt_version', APP_VERSION);
+  </script>
+  <script src="app.js?v=2"></script>
 </body>
 
 </html>
