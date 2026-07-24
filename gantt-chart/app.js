@@ -126,6 +126,26 @@ function initProgress() {
     taskProgress = { ...importedProgress };
     saveProgress();
   }
+  recalibrateStaleProgress();
+}
+
+function recalibrateStaleProgress() {
+  const to = getTodayOffset();
+  let changed = false;
+  tasksData.forEach(task => {
+    if (task.isMilestone) return;
+    const sOff = getStartDayOffset(task.start);
+    const eOff = sOff + (task.duration || 0);
+    const stored = getTaskProgress(task.id);
+    if (to >= eOff && stored < 100) {
+      taskProgress[task.id] = 100;
+      changed = true;
+    } else if (to < sOff && stored > 0) {
+      taskProgress[task.id] = 0;
+      changed = true;
+    }
+  });
+  if (changed) saveProgress();
 }
 function saveProgress() {
   localStorage.setItem('phoenix_gantt_progress', JSON.stringify(taskProgress));
@@ -237,18 +257,21 @@ function getStartDayOffset(startStr) {
   return Math.ceil(Math.abs(new Date(startStr) - projectStart) / DAY_MS);
 }
 
-// Today reference for progress tracking
-const today = new Date();
-today.setHours(0, 0, 0, 0);
-const todayOffset = Math.floor((today - projectStart) / DAY_MS);
+// Today reference for progress tracking — recalculated each call so it stays current
+function getTodayOffset() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.floor((today - projectStart) / DAY_MS);
+}
 
 function getExpectedProgress(task) {
-  if (task.isMilestone) return todayOffset >= getStartDayOffset(task.start) ? 100 : 0;
+  const to = getTodayOffset();
+  if (task.isMilestone) return to >= getStartDayOffset(task.start) ? 100 : 0;
   const sOff = getStartDayOffset(task.start);
   const eOff = sOff + task.duration;
-  if (todayOffset < sOff) return 0;
-  if (todayOffset >= eOff) return 100;
-  return Math.round(((todayOffset - sOff) / task.duration) * 100);
+  if (to < sOff) return 0;
+  if (to >= eOff) return 100;
+  return Math.round(((to - sOff) / task.duration) * 100);
 }
 
 function getProgressFillClass(actual, expected) {
@@ -497,9 +520,9 @@ function renderGantt() {
     // progress: any blocked -> amber border, fill colored by aggregate progress.
     if (isSectionCollapsed && groupBounds && groupBounds.durationDays > 0) {
       const groupBlocked = filteredSectionTasks.some(t => isTaskBlocked(t.id));
-      // Compare fill position against the today line within this section's span
+      const to = getTodayOffset();
       const todayPosInBar = Math.max(0, Math.min(100,
-        ((todayOffset - groupBounds.startDay) / groupBounds.durationDays) * 100));
+        ((to - groupBounds.startDay) / groupBounds.durationDays) * 100));
       const fillClass = getProgressFillClass(sectionAggProgress, todayPosInBar);
 
       const rollup = document.createElement('div');
@@ -682,7 +705,8 @@ function renderGantt() {
     });
   });
 
-  // Draw today line
+  // Draw today line — recalculated each render
+  const to = getTodayOffset();
   let todayLine = document.getElementById('today-line');
   if (!todayLine) {
     todayLine = document.createElement('div');
@@ -690,8 +714,8 @@ function renderGantt() {
     todayLine.className = 'today-line';
     document.getElementById('timeline-body').appendChild(todayLine);
   }
-  todayLine.style.left = `${todayOffset * currentZoom}px`;
-  todayLine.style.display = (todayOffset >= 0 && todayOffset <= totalProjectDays) ? 'block' : 'none';
+  todayLine.style.left = `${to * currentZoom}px`;
+  todayLine.style.display = (to >= 0 && to <= totalProjectDays) ? 'block' : 'none';
 
   // Sync scrolling between WBS body and Timeline container vertically
   syncScroll();
@@ -1340,8 +1364,8 @@ function drawProjectionChart(planData, actualOverall) {
   });
   ctx.stroke();
 
-  // Draw today vertical line
-  const clampedToday = Math.min(todayOffset, planData.length - 1);
+  const to = getTodayOffset();
+  const clampedToday = Math.min(to, planData.length - 1);
   const todayX = pad.left + (clampedToday / totalProjectDays) * chartW;
   ctx.strokeStyle = '#0d9488';
   ctx.lineWidth = 2;
