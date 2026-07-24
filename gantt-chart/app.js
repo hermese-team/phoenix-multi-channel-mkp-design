@@ -258,9 +258,10 @@ function getStartDayOffset(startStr) {
 }
 
 // Today reference for progress tracking — recalculated each call so it stays current
+// Uses UTC midnight to stay consistent with task dates (ISO 8601 date-only → UTC)
 function getTodayOffset() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
   return Math.floor((today - projectStart) / DAY_MS);
 }
 
