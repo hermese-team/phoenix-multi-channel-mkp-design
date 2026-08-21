@@ -153,7 +153,7 @@
     "duration": 40,
     "note": "",
     "effort": 11,
-    "progress": 60
+    "progress": 100
   },
   {
     "id": "f2",
@@ -184,7 +184,7 @@
     "duration": 35,
     "note": "",
     "effort": 10,
-    "progress": 90
+    "progress": 100
   },
   {
     "id": "f3",
@@ -216,7 +216,7 @@
     "duration": 33,
     "note": "",
     "effort": 8,
-    "progress": 70
+    "progress": 100
   },
   {
     "id": "f4",
@@ -247,7 +247,7 @@
     "duration": 33,
     "note": "",
     "effort": 7,
-    "progress": 60
+    "progress": 100
   },
   {
     "id": "f5",
@@ -359,7 +359,7 @@
     "duration": 40,
     "note": "",
     "effort": 10,
-    "progress": 60
+    "progress": 100
   },
   {
     "id": "s2",
@@ -389,7 +389,7 @@
     "duration": 33,
     "note": "",
     "effort": 10,
-    "progress": 30
+    "progress": 100
   },
   {
     "id": "s3",
@@ -422,7 +422,7 @@
     "duration": 40,
     "note": "",
     "effort": 8,
-    "progress": 0
+    "progress": 70
   },
   {
     "id": "r3",
@@ -458,7 +458,7 @@
     "duration": 47,
     "note": "",
     "effort": 7,
-    "progress": 0
+    "progress": 70
   },
   {
     "id": "p1",
@@ -488,7 +488,7 @@
     "duration": 40,
     "note": "",
     "effort": 6,
-    "progress": 0
+    "progress": 90
   },
   {
     "id": "p2",
@@ -518,7 +518,7 @@
     "duration": 40,
     "note": "",
     "effort": 8,
-    "progress": 20
+    "progress": 70
   },
   {
     "id": "p3a",
@@ -553,7 +553,7 @@
     "duration": 18,
     "note": "",
     "effort": 5,
-    "progress": 0
+    "progress": 50
   },
   {
     "id": "p3b",
@@ -617,7 +617,7 @@
     "duration": 26,
     "note": "",
     "effort": 8,
-    "progress": 0
+    "progress": 50
   },
   {
     "id": "r1",
@@ -647,7 +647,7 @@
     "duration": 40,
     "note": "",
     "effort": 8,
-    "progress": 10
+    "progress": 90
   },
   {
     "id": "r2",
@@ -675,7 +675,7 @@
     "duration": 8,
     "note": "",
     "effort": 5,
-    "progress": 40
+    "progress": 100
   },
   {
     "id": "r4",
@@ -738,7 +738,7 @@
     "duration": 26,
     "note": "",
     "effort": 5,
-    "progress": 50
+    "progress": 100
   },
   {
     "id": "o1b",
@@ -768,7 +768,7 @@
     "duration": 14,
     "note": "",
     "effort": 3,
-    "progress": 0
+    "progress": 60
   },
   {
     "id": "o2",
@@ -799,7 +799,7 @@
     "duration": 19,
     "note": "",
     "effort": 5,
-    "progress": 60
+    "progress": 100
   },
   {
     "id": "o3",
@@ -829,7 +829,7 @@
     "duration": 40,
     "note": "",
     "effort": 6,
-    "progress": 0
+    "progress": 50
   },
   {
     "id": "o4",
@@ -891,7 +891,7 @@
     "duration": 40,
     "note": "",
     "effort": 6,
-    "progress": 0
+    "progress": 20
   },
   {
     "id": "i2",
@@ -921,7 +921,7 @@
     "duration": 40,
     "note": "",
     "effort": 7,
-    "progress": 0
+    "progress": 30
   },
   {
     "id": "i3",
@@ -1020,7 +1020,7 @@
     "duration": 54,
     "note": "",
     "effort": 9,
-    "progress": 70
+    "progress": 80
   },
   {
     "id": "c2",
@@ -1052,7 +1052,7 @@
     "duration": 54,
     "note": "",
     "effort": 9,
-    "progress": 50
+    "progress": 70
   },
   {
     "id": "c3",
@@ -1084,7 +1084,7 @@
     "duration": 47,
     "note": "",
     "effort": 9,
-    "progress": 43
+    "progress": 50
   },
   {
     "id": "c4",
@@ -1114,7 +1114,7 @@
     "duration": 40,
     "note": "",
     "effort": 8,
-    "progress": 0
+    "progress": 20
   },
   {
     "id": "a1",
@@ -1143,7 +1143,7 @@
     "duration": 26,
     "note": "",
     "effort": 7,
-    "progress": 0
+    "progress": 100
   },
   {
     "id": "a2",
@@ -1174,7 +1174,7 @@
     "duration": 40,
     "note": "",
     "effort": 7,
-    "progress": 30
+    "progress": 70
   },
   {
     "id": "a3",
@@ -1207,7 +1207,7 @@
     "duration": 47,
     "note": "",
     "effort": 9,
-    "progress": 0
+    "progress": 60
   },
   {
     "id": "a4",
@@ -1238,7 +1238,7 @@
     "duration": 40,
     "note": "",
     "effort": 8,
-    "progress": 0
+    "progress": 20
   },
   {
     "id": "a5",
@@ -1275,7 +1275,7 @@
     "duration": 40,
     "note": "",
     "effort": 8,
-    "progress": 10
+    "progress": 40
   },
   {
     "id": "a6",
@@ -1307,7 +1307,7 @@
     "duration": 18,
     "note": "",
     "effort": 6,
-    "progress": 0
+    "progress": 15
   },
   {
     "id": "devdone",
