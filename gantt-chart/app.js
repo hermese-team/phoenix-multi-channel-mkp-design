@@ -3,17 +3,48 @@
 // Task data loaded from data.json
 let tasksData = [];
 
+// Simple deterministic string hash (FNV-1a variant) used as a stable
+// fingerprint of the server data to detect version changes.
+function hashString(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16);
+}
+
 async function loadTasksData() {
   let data;
+  // Track whether data came from the server (data.json) vs embedded fallback.
+  // The data-version check only applies to server data so local dev (file://)
+  // isn't forced to clear its storage.
+  let fromServer = false;
 
   try {
     const res = await fetch('data.json?_=' + Date.now());
-    if (res.ok) data = await res.json();
+    if (res.ok) {
+      data = await res.json();
+      fromServer = true;
+    }
   } catch (e) {
     // fetch failed (e.g. file:// protocol), fall through to embedded data
   }
 
   if (!data) data = EMBEDDED_DATA;
+
+  // Data-driven version guard: fingerprint the server data. If it differs
+  // from the last version we cached, discard stale localStorage so BOTH
+  // existing and new sessions always render the latest server data.
+  if (fromServer) {
+    const fp = hashString(JSON.stringify(data));
+    const storedFp = localStorage.getItem('phoenix_gantt_data_fp');
+    if (storedFp && storedFp !== fp) {
+      ['phoenix_gantt_progress','phoenix_gantt_dependencies','phoenix_gantt_notes','phoenix_gantt_task_overrides']
+        .forEach(function(k) { localStorage.removeItem(k); });
+    }
+    localStorage.setItem('phoenix_gantt_data_fp', fp);
+  }
 
   // Compile owners list and calculate durations dynamically
   data.forEach(task => {
