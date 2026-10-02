@@ -22,7 +22,7 @@
 | DEV-09 | Stock Sync + Redis | i2 continue (ATS), i3 design (stock orchestration) |
 | DEV-10 | Stock Orchestration | i3 (stock sync orchestration & coalescing) |
 | DEV-11 | Shopee/Lazada | c1 (Shopee outbound + push type mapping), c2 (Lazada outbound + push type mapping) |
-| DEV-12 | TikTok/Amaze | c3 (TikTok push type mapping + inbound + outbound), c4 (Amaze push type mapping + inbound + outbound) |
+| DEV-12 | TikTok/Amaze | c3 (TikTok push type mapping + inbound + outbound + listing read-back 4.17), c4 (Amaze push type mapping + inbound + outbound + listing read-back 4.17b) |
 | QA-01 | QA Lead | Progressive SIT scenarios, E2E test planning |
 | QA-02 | Contract QA | s3 continue (TikTok/Amaze simulators), adapter contract tests |
 | QA-03 | Domain QA | p3a outbound tests, r4 reconciliation tests, i3 stock tests |
@@ -250,6 +250,30 @@
 
 ---
 
+## Story 4.17: TikTok Listing Read-Back — Pull via c3 Adapter
+
+**Gantt Code:** p4 / c3  
+**Narrative:** As the **TikTok/Channel Adapter Engineer**, I want to implement the TikTok listing read-back call via the c3 adapter (OAuth bearer token) and map TikTok product fields to the channel-neutral listing record via the capability registry, feeding the shared p4 pull framework (3.2b), so that existing TikTok listings are pulled into the `channel_listings` table and cross-referenced against the RMS product master.  
+**Story Points:** 2
+
+### Acceptance Criteria
+**Scenario 1:** Given the TikTok adapter c3 is available with listing read-back capability, when the initial listing pull runs via the 3.2b framework, then all active TikTok listings should be ingested into the `channel_listings` table with correct field mapping (product_id, SKU reference, title, price, stock, and status).  
+**Scenario 2:** Given the TikTok read-back returns a 429 or 401, when the adapter handles it, then it should back off and retry in the next quota window via r3, auto-refreshing the access token if expired.
+
+---
+
+## Story 4.17b: Amaze/AxtraMall Listing Read-Back — Pull via c4 Adapter
+
+**Gantt Code:** p4 / c4  
+**Narrative:** As the **TikTok/Channel Adapter Engineer**, I want to implement the Amaze/AxtraMall listing read-back call via the c4 adapter (s1 TokenManager auth) and map Amaze product fields to the channel-neutral listing record via the capability registry, so that existing Amaze listings are pulled into the `channel_listings` table and cross-referenced against the RMS product master.  
+**Story Points:** 2
+
+### Acceptance Criteria
+**Scenario 1:** Given the Amaze adapter c4 is available with listing read-back capability, when the initial listing pull runs via the 3.2b framework, then all active Amaze listings should be ingested into the `channel_listings` table with correct field mapping.  
+**Scenario 2:** Given the Amaze read-back returns a rate-limit error, when the adapter handles it, then it should back off and retry in the next quota window via r3.
+
+---
+
 ## Story 4.18: Admin Portal — Order Detail & Fulfilment Status
 
 **Gantt Code:** a2  
@@ -322,6 +346,8 @@
 | 4.14 Price Reconciliation Start | r4 | DEV-06 | QA-03 | 3 | Aug 19 |
 | 4.15 Listing Read-Back — Channel Ingestion | p4 | DEV-05 | QA-03 | 3 | Aug 20 |
 | 4.16 Price Read-Back from Seller Centers | p4 | DEV-05 | QA-03 | 3 | Aug 21 |
+| 4.17 TikTok Listing Read-Back | c3 | DEV-12 | QA-03 | 2 | Aug 20 |
+| 4.17b Amaze Listing Read-Back | c4 | DEV-12 | QA-03 | 2 | Aug 21 |
 | 4.18 Admin Portal — Order Detail & Fulfilment Status | a2 | DEV-07 | QA-06 | 3 | Aug 19 |
 | 4.19 Admin Portal — Product Sync & Price Config | a4 | DEV-05 | QA-06 | 4 | Aug 21 |
 | 4.20 Load Harness — Generators & 250 Aggregate ops/sec | f6 | QA-05 | QA-05 | 5 | Aug 19 |

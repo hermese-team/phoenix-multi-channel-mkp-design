@@ -15,13 +15,13 @@
 | DEV-02 | Backend Foundation | f2/f3 completion, support all domain services with infrastructure |
 | DEV-03 | Contracts & Schema | Support adapter contract mocks, schema registry operations |
 | DEV-04 | Adapter SDK | s1/s2 completion (telemetry, Kafka result publishing), a5 design |
-| DEV-05 | Product Sync | p1 completion, p2 (RMS-vs-channel cross-ref, desired-state with action intent), p4 (listing pull via adapters) |
+| DEV-05 | Product Sync | p1 completion, p2 (RMS-vs-channel cross-ref, desired-state with action intent), p4 (listing pull framework + cross-ref engine) |
 | DEV-06 | Price & Promotion | r1 completion, r3 (quota-aware scheduler), r4 design |
 | DEV-07 | Order Sync | o1a completion, o2 (canonical normalization, idempotency), o1d start (enrichment orchestrator design) |
 | DEV-08 | Fulfilment Routing | o3 (fulfilment routing engine), a3 design (SKU warehouse mapping) |
 | DEV-09 | Stock Sync + Redis | i1 (stock ledger), f4 completion, i2 (ATS calculation) |
 | DEV-10 | Stock Orchestration | i2 (ATS), i3 design (stock orchestration) |
-| DEV-11 | Shopee/Lazada | c1 (Shopee auth + inbound + push type mapping + listing read-back for p4), c2 (Lazada auth + inbound + push type mapping + listing read-back for p4) |
+| DEV-11 | Shopee/Lazada | c1 (Shopee auth + inbound + push type mapping + listing read-back 3.2c), c2 (Lazada auth + inbound + push type mapping + listing read-back 3.2d) |
 | DEV-12 | TikTok/Channel | Support s3 simulators, c3 preparation |
 | QA-01 | QA Lead | Progressive SIT planning, cross-domain integration scenarios |
 | QA-02 | Contract QA | s3 channel API simulators (Shopee/Lazada), adapter contract tests |
@@ -58,16 +58,41 @@
 
 ---
 
-## Story 3.2b: Channel Listing Pull — Initial Ingestion via Adapters
+## Story 3.2b: Channel Listing Pull — Pull Framework & Cross-Reference Engine
 
 **Gantt Code:** p4  
-**Narrative:** As the **Product Sync Engineer**, I want to pull existing product listings from Shopee and Lazada seller centers via channel read-back APIs (c1/c2), store them in the `channel_listings` table, and cross-reference against RMS product master (p1), so that the initial match status per SKU-channel is established.  
-**Story Points:** 4
+**Narrative:** As the **Product Sync Engineer**, I want to build the channel-neutral listing pull framework (pagination/cursor reuse from o1b, rate-limit backoff via r3, `channel_listings` persistence, and integration with the p2 cross-reference engine), so that per-channel read-back adapters (c1-c4) feed listing data into a shared pipeline and the initial match status per SKU-channel is established.  
+**Story Points:** 3
 
 ### Acceptance Criteria
-**Scenario 1:** Given Shopee and Lazada adapters are available with listing read-back capability, when the initial listing pull runs, then all active listings from both platforms should be ingested into the `channel_listings` table with channel, listing_id, SKU reference, title, price, and status.  
-**Scenario 2:** Given the `channel_listings` table is populated with Shopee and Lazada listings, when the cross-reference engine processes them against the RMS product master, then each listing should be classified as MATCHED, MISSING_ON_CHANNEL, MISSING_IN_RMS, FIELD_DRIFTED, or DEACTIVATED_ON_CHANNEL and the results persisted.  
-**Scenario 3:** Given the Admin Portal cross-reference report, when an operator views it, then it should show per-channel counts of matched, missing-on-channel, missing-in-RMS, and drifted SKUs.
+**Scenario 1:** Given the listing pull framework is invoked with channel-neutral listing records, when persisted, then each listing should be stored in the `channel_listings` table with channel, account_id, listing_id, sku_or_reference, title, price, status, listing_url, fetched_at, and the RMS product version at read-back time.  
+**Scenario 2:** Given a channel read-back API returns a 429 rate-limit error, when the framework handles it, then it should back off and retry in the next quota window via r3.  
+**Scenario 3:** Given the `channel_listings` table is populated, when the cross-reference engine processes listings against the RMS product master, then each listing should be classified as MATCHED, MISSING_ON_CHANNEL, MISSING_IN_RMS, FIELD_DRIFTED, or DEACTIVATED_ON_CHANNEL and the results persisted.  
+**Scenario 4:** Given the Admin Portal cross-reference report, when an operator views it, then it should show per-channel counts of matched, missing-on-channel, missing-in-RMS, and drifted SKUs.
+
+---
+
+## Story 3.2c: Channel Listing Pull — Shopee Read-Back
+
+**Gantt Code:** p4 / c1  
+**Narrative:** As the **Shopee/Lazada Adapter Engineer**, I want to implement the Shopee listing read-back call via the c1 adapter (HMAC-signed GET product list) and map Shopee fields to the channel-neutral listing record via the capability registry, so that existing Shopee listings are pulled into the shared pull framework (3.2b).  
+**Story Points:** 2
+
+### Acceptance Criteria
+**Scenario 1:** Given the Shopee adapter c1 is available with listing read-back capability, when the initial listing pull runs via the 3.2b framework, then all active Shopee listings should be ingested into the `channel_listings` table with correct field mapping (listing_id, SKU reference, title, price, and status).  
+**Scenario 2:** Given the Shopee read-back API returns paginated results, when the adapter pages through, then it should respect the per-minute quota via r3 and fetch all pages without skipping records.
+
+---
+
+## Story 3.2d: Channel Listing Pull — Lazada Read-Back
+
+**Gantt Code:** p4 / c2  
+**Narrative:** As the **Shopee/Lazada Adapter Engineer**, I want to implement the Lazada listing read-back call via the c2 adapter (OAuth bearer token) and map Lazada fields to the channel-neutral listing record via the capability registry, so that existing Lazada listings are pulled into the shared pull framework (3.2b).  
+**Story Points:** 2
+
+### Acceptance Criteria
+**Scenario 1:** Given the Lazada adapter c2 is available with listing read-back capability, when the initial listing pull runs via the 3.2b framework, then all active Lazada listings should be ingested into the `channel_listings` table with correct field mapping.  
+**Scenario 2:** Given the Lazada read-back returns a rate-limit or auth error, when the adapter handles it, then it should back off via r3 and retry, auto-refreshing the OAuth token if expired.
 
 ---
 
@@ -303,7 +328,9 @@
 |-------|-----------|-----------|----------|:---:|--------|
 | 3.1 Product Mapping — SKU Resolution | p2 | DEV-05 | QA-03 | 4 | Jul 31 |
 | 3.2 Desired-State Ledger Persistence with Action Intent | p2 | DEV-05 | QA-03 | 4 | Aug 04 |
-| 3.2b Channel Listing Pull — Initial Ingestion via Adapters | p4 | DEV-05 | QA-03 | 4 | Aug 07 |
+| 3.2b Channel Listing Pull — Framework & Cross-Ref Engine | p4 | DEV-05 | QA-03 | 3 | Aug 07 |
+| 3.2c Channel Listing Pull — Shopee Read-Back | c1 | DEV-11 | QA-04 | 2 | Aug 07 |
+| 3.2d Channel Listing Pull — Lazada Read-Back | c2 | DEV-11 | QA-04 | 2 | Aug 07 |
 | 3.3 Canonical Order Normalization | o2 | DEV-07 | QA-04 | 5 | Aug 04 |
 | 3.4 Order Out-of-Order Event Handling | o2 | DEV-07 | QA-04 | 2 | Aug 05 |
 | 3.4b Detail Enrichment Orchestrator — Design & Coalescer | o1d | DEV-07 | QA-04 | 3 | Aug 07 |
